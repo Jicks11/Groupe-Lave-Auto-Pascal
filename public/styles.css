@@ -352,7 +352,7 @@ small, .muted { color: var(--muted); }
 
 .content-grid {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 

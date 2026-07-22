@@ -26,7 +26,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-21" />
+    <link rel="stylesheet" href="styles.css?v=20260722-22" />
   </head>
   <body>
     <div class="startup-overlay" id="startupOverlay" role="status" aria-live="polite">
@@ -82,15 +82,8 @@
         </section>
 
         <section class="content-grid">
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">Historique</p>
-                <h2>Paiements r&eacute;cents</h2>
-              </div>
-            </div>
-            <div class="history-list" id="historyList"></div>
-          </article>
+          <!-- historique masqué (id gardé pour le JS) -->
+          <div hidden id="historyList"></div>
 
           <article class="panel admin-panel locked" id="adminPanel">
             <div class="panel-heading">
