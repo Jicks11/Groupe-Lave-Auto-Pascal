@@ -26,7 +26,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-24" />
+    <link rel="stylesheet" href="styles.css?v=20260722-25" />
   </head>
   <body>
     <div class="startup-overlay" id="startupOverlay" role="status" aria-live="polite">
@@ -92,40 +92,101 @@
             <div class="history-list" id="historyList"></div>
           </article>
 
-          <article class="panel admin-panel admin-panel--simple" id="adminPanel">
-            <div class="panel-heading admin-heading-simple">
+          <article class="panel admin-panel locked" id="adminPanel">
+            <div class="panel-heading">
               <div>
                 <p class="eyebrow">Administrateur</p>
                 <h2>Pascal</h2>
               </div>
               <button class="ghost-button compact-button" id="adminToggle" type="button">Mode Admin</button>
             </div>
-            <!-- formulaires admin masqués (ids conservés pour le JS) -->
-            <div hidden>
-              <div id="adminLocked"></div>
-              <div id="adminContent"></div>
-              <form id="paymentForm">
-                <select id="payMember"></select>
-                <input id="payMonth" type="month" />
-                <input id="payAmount" type="number" value="39.60" />
-                <input id="payDate" type="date" />
-                <select id="payMode"><option>Interac</option></select>
-                <input id="payNote" type="text" />
-                <button id="markAllPaid" type="button"></button>
+
+            <div class="admin-locked" id="adminLocked">
+              <p class="muted" style="margin:0">Clique sur <strong>Mode Admin</strong> et entre le PIN pour g&eacute;rer les paiements.</p>
+            </div>
+
+            <div class="admin-content" id="adminContent">
+              <form id="paymentForm" class="admin-grid">
+                <div class="field">
+                  <label for="payMember">Membre</label>
+                  <select id="payMember" required></select>
+                </div>
+                <div class="field">
+                  <label for="payMonth">Mois couvert</label>
+                  <input id="payMonth" type="month" required />
+                </div>
+                <div class="field">
+                  <label for="payAmount">Montant ($)</label>
+                  <input id="payAmount" type="number" step="0.01" min="0" value="39.60" required />
+                </div>
+                <div class="field">
+                  <label for="payDate">Date re&ccedil;ue</label>
+                  <input id="payDate" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="payMode">Mode</label>
+                  <select id="payMode">
+                    <option>Interac</option>
+                    <option>Comptant</option>
+                    <option>Virement</option>
+                    <option>Autre</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="payNote">Note</label>
+                  <input id="payNote" type="text" maxlength="120" placeholder="Optionnel" />
+                </div>
+                <div class="field full form-actions">
+                  <button class="accent-button" type="submit">Enregistrer le paiement</button>
+                  <button class="ghost-button" id="markAllPaid" type="button">Marquer tous pay&eacute;s (mois)</button>
+                </div>
               </form>
-              <form id="memberForm">
-                <select id="editMember"></select>
-                <input id="editName" type="text" />
-                <select id="editActive"><option value="true">Oui</option><option value="false">Non</option></select>
+
+              <hr class="admin-sep" />
+
+              <form id="memberForm" class="admin-grid">
+                <div class="field">
+                  <label for="editMember">Renommer membre</label>
+                  <select id="editMember"></select>
+                </div>
+                <div class="field">
+                  <label for="editName">Nouveau nom</label>
+                  <input id="editName" type="text" maxlength="60" placeholder="Ex: Alex" />
+                </div>
+                <div class="field">
+                  <label for="editActive">Actif</label>
+                  <select id="editActive">
+                    <option value="true">Oui</option>
+                    <option value="false">Non</option>
+                  </select>
+                </div>
+                <div class="field form-actions" style="align-content:end;">
+                  <button class="accent-button" type="submit">Sauvegarder le membre</button>
+                </div>
               </form>
-              <form id="settingsForm">
-                <input id="settingFee" type="number" />
-                <input id="settingDueDay" type="number" />
-                <button id="exportData" type="button"></button>
-                <button id="importData" type="button"></button>
-                <input id="importFile" type="file" accept="application/json,.json" />
+
+              <hr class="admin-sep" />
+
+              <form id="settingsForm" class="admin-grid">
+                <div class="field">
+                  <label for="settingFee">Cotisation mensuelle ($)</label>
+                  <input id="settingFee" type="number" step="0.01" min="0" />
+                </div>
+                <div class="field">
+                  <label for="settingDueDay">Jour d'&eacute;ch&eacute;ance (1–28)</label>
+                  <input id="settingDueDay" type="number" min="1" max="28" />
+                </div>
+                <div class="field full form-actions">
+                  <button class="accent-button" type="submit">Enregistrer r&eacute;glages</button>
+                  <button class="ghost-button" id="exportData" type="button">Exporter JSON</button>
+                  <button class="ghost-button" id="importData" type="button">Importer JSON</button>
+                  <input id="importFile" type="file" accept="application/json,.json" hidden />
+                </div>
               </form>
-              <p id="adminNote"></p>
+
+              <p class="admin-note" id="adminNote">
+                PIN : <strong>2020</strong> · Pr&eacute;l&egrave;vement auto le 20 &agrave; 00:01 (sauf toi).
+              </p>
             </div>
           </article>
         </section>
@@ -134,7 +195,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260722-24"></script>
+    <script src="app.js?v=20260722-25"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
