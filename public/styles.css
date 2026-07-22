@@ -668,6 +668,11 @@ small, .muted { color: var(--muted); }
 .admin-panel.locked .admin-content { display: none; }
 .admin-panel.unlocked .admin-locked { display: none; }
 
+.admin-panel--simple .panel-heading,
+.admin-heading-simple {
+  margin-bottom: 0;
+}
+
 .admin-locked {
   border: 1px dashed rgba(47, 224, 255, 0.3);
   border-radius: 10px;
