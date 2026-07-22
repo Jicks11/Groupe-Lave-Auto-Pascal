@@ -756,7 +756,6 @@ const els = {
   historyList: document.querySelector("#historyList"),
   adminPanel: document.querySelector("#adminPanel"),
   adminToggle: document.querySelector("#adminToggle"),
-  adminUnlockBtn: document.querySelector("#adminUnlockBtn"),
   paymentForm: document.querySelector("#paymentForm"),
   payMember: document.querySelector("#payMember"),
   payMonth: document.querySelector("#payMonth"),
@@ -1063,8 +1062,6 @@ els.adminToggle.addEventListener("click", () => {
   if (adminUnlocked) lockAdmin();
   else tryUnlockAdmin();
 });
-
-els.adminUnlockBtn.addEventListener("click", tryUnlockAdmin);
 
 els.paymentForm.addEventListener("submit", (e) => {
   e.preventDefault();
