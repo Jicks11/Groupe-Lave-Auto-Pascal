@@ -73,8 +73,21 @@ function seedAugustPayments() {
     note: "27,20 $ en surplus",
     createdAt: "2026-07-22T12:00:11.000Z"
   });
-  // Luc : prochain paiement 1er novembre (pas d’août)
-  // Alain : 39,60 $ impayé — aucun paiement
+  // Luc : août + septembre + octobre payés (solde à jour)
+  for (const [i, lucYm] of ["2026-08", "2026-09", "2026-10"].entries()) {
+    payments.push({
+      id: `seed_luc_${lucYm}`,
+      type: "payment",
+      memberId: "m9",
+      yearMonth: lucYm,
+      amount: 39.6,
+      date: lucYm === "2026-08" ? "2026-07-20" : lucYm === "2026-09" ? "2026-08-20" : "2026-09-20",
+      mode: "Interac",
+      note: `Payé (${lucYm}) — solde à jour`,
+      createdAt: `2026-07-22T12:00:1${i}.000Z`
+    });
+  }
+  // Alain : 39,60 $ impayé (août) — aucun paiement
   // Les prélèvements (type fee) sont créés auto le 20 à 00:01
   return payments;
 }
@@ -89,9 +102,7 @@ function createDefaultState() {
     feeStartYearMonth: FEE_START_YEAR_MONTH,
     members: DEFAULT_MEMBERS.map((m) => ({ ...m })),
     payments: seedAugustPayments(),
-    memberNotes: {
-      m9: "Prochain paiement : 1er novembre"
-    },
+    memberNotes: {},
     updatedAt: "2026-07-22T12:00:00.000Z"
   };
 }
@@ -691,7 +702,6 @@ const els = {
   activeCountLabel: document.querySelector("#activeCountLabel"),
   collectedAll: document.querySelector("#collectedAll"),
   paidPill: document.querySelector("#paidPill"),
-  monthSelect: document.querySelector("#monthSelect"),
   participantList: document.querySelector("#participantList"),
   detailTitle: document.querySelector("#detailTitle"),
   detailStatus: document.querySelector("#detailStatus"),
@@ -760,12 +770,11 @@ function monthOptions() {
   return opts;
 }
 
-function fillMonthSelect() {
-  const opts = monthOptions();
-  if (!opts.includes(selectedMonth)) selectedMonth = currentYearMonth();
-  els.monthSelect.innerHTML = opts
-    .map((ym) => `<option value="${ym}" ${ym === selectedMonth ? "selected" : ""}>${yearMonthLabel(ym)}</option>`)
-    .join("");
+/** Mois de référence de la feuille (pas de menu déroulant) */
+function syncSheetMonth() {
+  // Affiche le mois de cotisation courant (ou août 2026 tant qu'on y est)
+  const now = currentYearMonth();
+  selectedMonth = now <= "2026-08" ? "2026-08" : now;
 }
 
 function fillAdminSelects() {
@@ -1081,7 +1090,7 @@ function renderHeroAndMetrics() {
 
 function render() {
   applyScheduledMonthlyFees(new Date(), { silent: true });
-  fillMonthSelect();
+  syncSheetMonth();
   fillAdminSelects();
   renderHeroAndMetrics();
   renderParticipants();
@@ -1140,11 +1149,6 @@ function lockAdmin() {
 }
 
 // ─── Events ───────────────────────────────────────────────
-
-els.monthSelect.addEventListener("change", () => {
-  selectedMonth = els.monthSelect.value;
-  render();
-});
 
 els.adminToggle.addEventListener("click", () => {
   if (adminUnlocked) lockAdmin();
