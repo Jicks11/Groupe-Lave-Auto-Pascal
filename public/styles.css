@@ -84,24 +84,26 @@ button { border: 0; cursor: pointer; }
 .startup-logo--owl {
   display: grid;
   justify-items: center;
-  gap: 4px;
-  min-width: 76px;
-  width: auto;
+  gap: 6px;
+  width: 88px;
   height: auto;
-  padding: 6px 8px 8px;
+  padding: 6px 6px 8px;
   overflow: visible;
   background: #fff;
   border: 2px solid rgba(227, 28, 35, 0.65);
+  border-radius: 12px;
   box-shadow: 0 0 24px rgba(227, 28, 35, 0.4);
+  aspect-ratio: auto;
 }
 
 .startup-logo--owl img {
   display: block;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-  border-radius: 6px;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
   background: #fff;
+  aspect-ratio: 1 / 1;
 }
 
 .startup-card h2 { margin: 0 0 8px; }
@@ -172,14 +174,14 @@ button { border: 0; cursor: pointer; }
 .logo-card--owl {
   display: grid;
   justify-items: center;
-  align-content: center;
-  gap: 2px;
-  width: 84px;
+  align-content: start;
+  gap: 4px;
+  width: 88px;
   height: auto;
-  min-height: 88px;
   padding: 6px 6px 8px;
   overflow: visible;
   border: 2px solid rgba(227, 28, 35, 0.75);
+  border-radius: 12px;
   background: #fff;
   box-shadow:
     0 0 22px rgba(227, 28, 35, 0.4),
@@ -188,22 +190,24 @@ button { border: 0; cursor: pointer; }
 
 .group-logo {
   display: block;
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
   border-radius: 8px;
   background: #fff;
+  aspect-ratio: 1 / 1;
 }
 
+/* Bleu marin (style Couche-Tard) sous le hibou */
 .logo-caption {
   display: block;
   width: 100%;
   text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 900;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   line-height: 1.1;
-  color: #e31c23;
+  color: #00205b;
   text-transform: none;
 }
 
