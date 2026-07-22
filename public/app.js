@@ -619,46 +619,93 @@ function statusLabel(status) {
   return "Impayé";
 }
 
-/** Texte solde style feuille Excel (colonne Soldes) */
+/**
+ * Mois à examiner pour le solde d'un membre :
+ * du début des cotisations jusqu'au plus loin entre le mois courant et son dernier paiement.
+ */
+function coverageMonthsForMember(memberId) {
+  const start = state.feeStartYearMonth || FEE_START_YEAR_MONTH;
+  let end = selectedMonth || currentYearMonth();
+  for (const p of state.payments) {
+    if (p.memberId !== memberId || !p.yearMonth) continue;
+    if (String(p.yearMonth) > end) end = String(p.yearMonth);
+  }
+  const list = [];
+  let ym = start;
+  for (let i = 0; i < 36; i += 1) {
+    if (ym > end) break;
+    list.push(ym);
+    ym = addMonthsYearMonth(ym, 1);
+  }
+  return list;
+}
+
+/**
+ * Solde affiché :
+ * - s'il reste un mois en retard → (montant dû)
+ * - sinon le dernier mois entièrement payé → « Octobre payé »
+ *   (ex. Luc a payé août+sept+octobre → Octobre payé)
+ */
 function soldeLabel(memberId, yearMonth) {
   const member = state.members.find((m) => m.id === memberId);
   if (!member || member.active === false) return { text: "Inactif", kind: "inactive" };
 
-  const monthShort = monthShortLabel(yearMonth);
-
-  // Pascal (toi) : toujours le mois correspondant payé
+  // Pascal (toi) : toujours le mois de la feuille payé
   if (isOwnerMember(member) || isOwnerMember(memberId)) {
-    return { text: `${monthShort} payé`, kind: "paid" };
+    return { text: `${monthShortLabel(yearMonth)} payé`, kind: "paid" };
   }
 
+  const fee = Number(state.monthlyFee);
+  const months = coverageMonthsForMember(memberId);
   const note = state.memberNotes?.[memberId];
-  const paid = paidAmount(memberId, yearMonth);
-  const bal = monthBalance(memberId, yearMonth);
-  const remaining = Math.max(0, -bal);
-  const surplus = Math.max(0, bal);
-  const feeDone = hasMonthlyFee(memberId, yearMonth);
 
-  // Note spéciale (ex. Luc → 1er novembre) si rien payé et pas encore prélevé
-  if (note && paid < 0.01 && !feeDone) {
+  let firstDebt = null;
+  let lastFullYm = null;
+  let surplusOnLast = 0;
+
+  for (const ym of months) {
+    const paid = paidAmount(memberId, ym);
+    const remaining = Math.round((fee - paid) * 100) / 100;
+    if (remaining > 0.01) {
+      if (!firstDebt) {
+        firstDebt = { ym, remaining, paid };
+      }
+    } else {
+      // payé en entier (ou plus)
+      lastFullYm = ym;
+      surplusOnLast = Math.max(0, Math.round((paid - fee) * 100) / 100);
+    }
+  }
+
+  // Note spéciale seulement s'il n'a encore rien payé
+  if (note && !lastFullYm && !firstDebt) {
+    return { text: note, kind: "note" };
+  }
+  if (note && !lastFullYm && firstDebt && firstDebt.paid < 0.01) {
     return { text: note, kind: "note" };
   }
 
-  if (surplus > 0.01) {
-    return {
-      text: `${money(surplus)} en surplus / ${monthShort} payé`,
-      kind: "surplus"
-    };
+  // En retard / partiel sur le premier mois manquant
+  if (firstDebt) {
+    // S'il a déjà des mois complets après un trou, on affiche quand même le premier dû
+    const kind = firstDebt.paid > 0.01 ? "partial" : "unpaid";
+    return { text: `(${money(firstDebt.remaining)})`, kind };
   }
 
-  if (bal >= -0.001) {
-    return { text: `${monthShort} payé`, kind: "paid" };
+  // Tout est payé jusqu'à lastFullYm inclus (ex. octobre)
+  if (lastFullYm) {
+    const label = monthShortLabel(lastFullYm);
+    if (surplusOnLast > 0.01) {
+      return {
+        text: `${money(surplusOnLast)} en surplus / ${label} payé`,
+        kind: "surplus"
+      };
+    }
+    return { text: `${label} payé`, kind: "paid" };
   }
 
-  if (remaining > 0.01 && paid > 0.01) {
-    return { text: `(${money(remaining)})`, kind: "partial" };
-  }
-
-  return { text: `(${money(remaining)})`, kind: "unpaid" };
+  // Rien payé, mois courant dû
+  return { text: `(${money(fee)})`, kind: "unpaid" };
 }
 
 function monthShortLabel(ym) {
