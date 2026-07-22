@@ -1,7 +1,7 @@
 {
-  "name": "Groupe Lave-auto Couche-Tard (Pascal)",
+  "name": "Groupe Lave-auto Couche-Tard",
   "short_name": "Pascal",
-  "description": "Suivi des cotisations du groupe Lave-auto Couche-Tard (Pascal)",
+  "description": "Suivi des cotisations du groupe Lave-auto Couche-Tard",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

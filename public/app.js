@@ -1,5 +1,5 @@
 /**
- * Groupe Lave-auto Couche-Tard (Pascal)
+ * Groupe Lave-auto Couche-Tard
  * 9 membres · 39,60 $ / mois · échéance le 20 à 00:01
  * Sync serveur (/api/state) + cache localStorage
  */
@@ -94,7 +94,7 @@ function seedAugustPayments() {
 
 function createDefaultState() {
   return {
-    groupName: "Groupe Lave-auto Couche-Tard (Pascal)",
+    groupName: "Groupe Lave-auto Couche-Tard",
     monthlyFee: 39.6,
     dueDay: 20,
     adminPin: DEFAULT_ADMIN_PIN,
@@ -147,7 +147,7 @@ function loadState() {
     return {
       ...base,
       ...parsed,
-      groupName: "Groupe Lave-auto Couche-Tard (Pascal)",
+      groupName: "Groupe Lave-auto Couche-Tard",
       seedVersion: SHEET_SEED_VERSION,
       feeStartYearMonth: parsed.feeStartYearMonth || FEE_START_YEAR_MONTH,
       monthlyFee: Number(parsed.monthlyFee) > 0 ? Number(parsed.monthlyFee) : base.monthlyFee,
@@ -233,7 +233,7 @@ function mergeRemoteState(remote) {
   return {
     ...base,
     ...remote,
-    groupName: "Groupe Lave-auto Couche-Tard (Pascal)",
+    groupName: "Groupe Lave-auto Couche-Tard",
     seedVersion: remote.seedVersion || SHEET_SEED_VERSION,
     feeStartYearMonth: remote.feeStartYearMonth || FEE_START_YEAR_MONTH,
     monthlyFee: Number(remote.monthlyFee) > 0 ? Number(remote.monthlyFee) : base.monthlyFee,

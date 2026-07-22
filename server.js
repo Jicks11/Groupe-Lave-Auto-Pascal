@@ -1,5 +1,5 @@
 /**
- * Groupe Lave-auto Couche-Tard (Pascal)
+ * Groupe Lave-auto Couche-Tard
  * API d'état partagé + fichiers statiques
  * Indépendant des groupes Loto Max / 6/49
  */
@@ -84,7 +84,7 @@ app.post("/api/state", (req, res) => {
     return res.status(400).json({ ok: false, error: "État invalide" });
   }
   state.updatedAt = new Date().toISOString();
-  state.groupName = state.groupName || "Groupe Lave-auto Couche-Tard (Pascal)";
+  state.groupName = state.groupName || "Groupe Lave-auto Couche-Tard";
   try {
     writeState(state);
     return res.json({ ok: true, updatedAt: state.updatedAt });
