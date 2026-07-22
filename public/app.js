@@ -443,47 +443,19 @@ function applyScheduledMonthlyFees(now = new Date(), { silent = false } = {}) {
 }
 
 /**
- * Pascal n'est jamais débité : solde du mois toujours à jour (« Mois payé »).
- * Crée au besoin un paiement de couverture (sans prélèvement).
+ * Pascal n'est jamais débité (affichage toujours « mois payé »).
+ * On retire seulement d'éventuels prélèvements auto — sans créer de ligne d'historique.
  */
 function ensureOwnerMonthPaid(yearMonth, now = new Date()) {
   if (!yearMonth || !state) return false;
   const owner = state.members.find((m) => isOwnerMember(m));
   if (!owner || owner.active === false) return false;
 
-  // Retirer d'éventuels prélèvements auto sur Pascal (sécurité)
   const before = state.payments.length;
   state.payments = state.payments.filter(
     (p) => !(isFeeEntry(p) && p.memberId === owner.id)
   );
-  let changed = state.payments.length !== before;
-
-  const fee = Math.round(Number(state.monthlyFee) * 100) / 100;
-  const paid = paidAmount(owner.id, yearMonth);
-  // Évite les doublons de couverture propriétaire
-  const alreadyCovered = state.payments.some(
-    (p) =>
-      isPaymentEntry(p) &&
-      p.memberId === owner.id &&
-      p.yearMonth === yearMonth &&
-      String(p.id || "").startsWith("owner_cover_")
-  );
-  if (!alreadyCovered && paid + 0.001 < fee) {
-    const need = Math.round((fee - paid) * 100) / 100;
-    state.payments.unshift({
-      id: `owner_cover_${yearMonth}_${owner.id}`,
-      type: "payment",
-      memberId: owner.id,
-      yearMonth,
-      amount: need,
-      date: `${yearMonth}-01`,
-      mode: "Propriétaire",
-      note: "Pascal (propriétaire) — toujours payé, pas de cotisation",
-      createdAt: now.toISOString()
-    });
-    changed = true;
-  }
-  return changed;
+  return state.payments.length !== before;
 }
 
 function dbEnabled() {
