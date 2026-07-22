@@ -36,60 +36,8 @@ const DEFAULT_MEMBERS = [
 ];
 
 function seedAugustPayments() {
-  const ym = "2026-08";
-  const paidFull = ["m1", "m2", "m3", "m5", "m7", "m8"];
-  const payments = paidFull.map((memberId, i) => ({
-    id: `seed_aug_${memberId}`,
-    type: "payment",
-    memberId,
-    yearMonth: ym,
-    amount: 39.6,
-    date: "2026-07-20",
-    mode: "Interac",
-    note: "Août payé (import feuille)",
-    createdAt: `2026-07-22T12:00:0${i}.000Z`
-  }));
-  // Nancy : reste 6,20 $ → déjà payé 33,40 $
-  payments.push({
-    id: "seed_aug_m4",
-    type: "payment",
-    memberId: "m4",
-    yearMonth: ym,
-    amount: 33.4,
-    date: "2026-07-20",
-    mode: "Interac",
-    note: "Partiel — reste 6,20 $",
-    createdAt: "2026-07-22T12:00:10.000Z"
-  });
-  // Réjean : surplus 27,20 $ en plus du mois payé
-  payments.push({
-    id: "seed_surplus_m7",
-    type: "payment",
-    memberId: "m7",
-    yearMonth: ym,
-    amount: 27.2,
-    date: "2026-07-20",
-    mode: "Interac",
-    note: "27,20 $ en surplus",
-    createdAt: "2026-07-22T12:00:11.000Z"
-  });
-  // Luc : août + septembre + octobre payés (solde à jour)
-  for (const [i, lucYm] of ["2026-08", "2026-09", "2026-10"].entries()) {
-    payments.push({
-      id: `seed_luc_${lucYm}`,
-      type: "payment",
-      memberId: "m9",
-      yearMonth: lucYm,
-      amount: 39.6,
-      date: lucYm === "2026-08" ? "2026-07-20" : lucYm === "2026-09" ? "2026-08-20" : "2026-09-20",
-      mode: "Interac",
-      note: `Payé (${lucYm}) — solde à jour`,
-      createdAt: `2026-07-22T12:00:1${i}.000Z`
-    });
-  }
-  // Alain : 39,60 $ impayé (août) — aucun paiement
-  // Les prélèvements (type fee) sont créés auto le 20 à 00:01
-  return payments;
+  // Départ à neuf : aucun paiement / retrait en historique
+  return [];
 }
 
 function createDefaultState() {
@@ -103,7 +51,7 @@ function createDefaultState() {
     members: DEFAULT_MEMBERS.map((m) => ({ ...m })),
     payments: seedAugustPayments(),
     memberNotes: {},
-    updatedAt: "2026-07-22T12:00:00.000Z"
+    updatedAt: new Date().toISOString()
   };
 }
 
