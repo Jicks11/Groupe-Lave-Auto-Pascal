@@ -397,6 +397,11 @@ small, .muted { color: var(--muted); }
   letter-spacing: 0.03em;
 }
 
+.sheet-only {
+  display: grid;
+  gap: 14px;
+}
+
 .member-row {
   display: grid;
   grid-template-columns: 36px 1fr minmax(140px, 42%);
@@ -407,7 +412,7 @@ small, .muted { color: var(--muted); }
   border-radius: 0;
   padding: 12px 14px;
   background: rgba(4, 20, 28, 0.35);
-  cursor: pointer;
+  cursor: default;
   transition: background 160ms ease;
 }
 
@@ -428,13 +433,13 @@ small, .muted { color: var(--muted); }
 
 .member-row .name {
   font-weight: 750;
-  margin-bottom: 2px;
-  font-size: 1rem;
+  margin-bottom: 0;
+  font-size: 1.02rem;
+  line-height: 1.25;
 }
 
 .member-row .meta {
-  color: var(--muted);
-  font-size: 0.78rem;
+  display: none;
 }
 
 .col-solde {

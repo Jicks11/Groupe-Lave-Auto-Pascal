@@ -811,70 +811,38 @@ function syncEditFields() {
 }
 
 function renderParticipants() {
-  const fee = Number(state.monthlyFee);
   const header = `
     <div class="balance-table-head" aria-hidden="true">
       <span class="col-num">#</span>
-      <span class="col-name">Participants</span>
-      <span class="col-solde">Soldes</span>
+      <span class="col-name">Prénom et nom</span>
+      <span class="col-solde">Solde</span>
     </div>`;
 
   const rows = state.members.map((m, index) => {
-    const status = memberStatus(m.id, selectedMonth);
-    const paid = paidAmount(m.id, selectedMonth);
-    const bal = monthBalance(m.id, selectedMonth);
-    const remaining = Math.max(0, -bal);
-    const feeDone = hasMonthlyFee(m.id, selectedMonth);
-    const owner = isOwnerMember(m);
     const solde = soldeLabel(m.id, selectedMonth);
-    const selected = m.id === selectedId ? "selected" : "";
     const stripe = index % 2 === 1 ? "stripe" : "";
 
     return `
-      <div class="member-row ${selected} ${stripe}" data-id="${m.id}" role="button" tabindex="0">
+      <div class="member-row ${stripe}" data-id="${m.id}">
         <span class="col-num">${index + 1}</span>
         <div class="col-name">
-          <div class="name">${escapeHtml(m.name)}${owner ? ' <span class="meta">(toi)</span>' : ""}</div>
-          <div class="meta">${
-            owner
-              ? "Propriétaire — toujours le mois payé"
-              : `${money(paid)} versé · cotisation ${money(fee)}${
-                  feeDone ? " · prélevé" : " · prélèv. le 20 00:01"
-                }`
-          }</div>
+          <div class="name">${escapeHtml(m.name)}</div>
         </div>
         <div class="col-solde">
           <span class="solde-text solde-${solde.kind}">${escapeHtml(solde.text)}</span>
-          ${
-            remaining > 0.01 && status !== "inactive"
-              ? `<span class="solde-sub">dû: ${money(remaining)}</span>`
-              : status === "paid" || solde.kind === "surplus"
-                ? `<span class="solde-sub ok">à jour</span>`
-                : ""
-          }
         </div>
       </div>`;
   });
 
   els.participantList.innerHTML =
     header + (rows.join("") || "<p class='muted'>Aucun membre.</p>");
-
-  els.participantList.querySelectorAll(".member-row").forEach((row) => {
-    row.addEventListener("click", () => {
-      selectedId = row.dataset.id;
-      localStorage.setItem(SELECTED_KEY, selectedId);
-      render();
-    });
-    row.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        row.click();
-      }
-    });
-  });
 }
 
 function renderDetail() {
+  // Panneau détail retiré de l'UI publique — ne rien afficher
+  if (!els.memberDetail) return;
+  els.memberDetail.innerHTML = "";
+  return;
   const member = state.members.find((m) => m.id === selectedId) || state.members[0];
   if (!member) {
     els.memberDetail.innerHTML = "<p class='muted'>Aucun membre sélectionné.</p>";

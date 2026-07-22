@@ -14,7 +14,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-12" />
+    <link rel="stylesheet" href="styles.css?v=20260722-13" />
     <link rel="icon" href="assets/hibou-rouge.jpg?v=5" type="image/jpeg" />
   </head>
   <body>
@@ -99,28 +99,23 @@
           </article>
         </section>
 
-        <section class="content-grid">
+        <section class="sheet-only">
           <article class="panel">
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Feuille du groupe</p>
-                <h2>Participants &amp; soldes</h2>
+                <h2>Pr&eacute;nom, nom et solde</h2>
               </div>
               <span class="pill" id="paidPill">0 pay&eacute;s</span>
             </div>
             <div class="participant-list balance-table" id="participantList"></div>
           </article>
-
-          <article class="panel">
-            <div class="panel-heading">
-              <div>
-                <p class="eyebrow">D&eacute;tail</p>
-                <h2 id="detailTitle">Participant</h2>
-              </div>
-              <span class="pill" id="detailStatus">—</span>
-            </div>
-            <div id="memberDetail" class="member-detail"></div>
-          </article>
+          <!-- détail participant masqué (garde les ids pour le JS admin) -->
+          <div hidden>
+            <h2 id="detailTitle">Participant</h2>
+            <span id="detailStatus">—</span>
+            <div id="memberDetail"></div>
+          </div>
         </section>
 
         <section class="content-grid">
@@ -244,6 +239,6 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260722-12"></script>
+    <script src="app.js?v=20260722-13"></script>
   </body>
 </html>
