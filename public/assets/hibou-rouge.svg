@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 220" role="img" aria-label="Hibou rouge">
+  <!-- Groupe privé — mascotte hibou rouge (style dépanneur) -->
+  <defs>
+    <radialGradient id="bodyGrad" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ff4a4a"/>
+      <stop offset="55%" stop-color="#e31c23"/>
+      <stop offset="100%" stop-color="#b01018"/>
+    </radialGradient>
+    <radialGradient id="bellyGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ffd84a"/>
+      <stop offset="100%" stop-color="#f5b800"/>
+    </radialGradient>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Oreilles / aigrettes -->
+  <path d="M42 78 C28 42 48 22 72 48 C58 58 50 68 42 78Z" fill="url(#bodyGrad)"/>
+  <path d="M158 78 C172 42 152 22 128 48 C142 58 150 68 158 78Z" fill="url(#bodyGrad)"/>
+
+  <!-- Corps -->
+  <ellipse cx="100" cy="148" rx="62" ry="58" fill="url(#bodyGrad)" filter="url(#soft)"/>
+  <!-- Ventre jaune -->
+  <ellipse cx="100" cy="158" rx="36" ry="34" fill="url(#bellyGrad)"/>
+
+  <!-- Tête -->
+  <ellipse cx="100" cy="88" rx="70" ry="62" fill="url(#bodyGrad)" filter="url(#soft)"/>
+
+  <!-- Disques oculaires blancs -->
+  <ellipse cx="72" cy="88" rx="28" ry="30" fill="#fff"/>
+  <ellipse cx="128" cy="88" rx="28" ry="30" fill="#fff"/>
+
+  <!-- Œil ouvert (droite du spectateur = gauche du hibou qui cligne souvent à gauche) -->
+  <!-- Œil gauche ouvert -->
+  <circle cx="74" cy="90" r="14" fill="#1a1a1a"/>
+  <circle cx="79" cy="85" r="5" fill="#fff"/>
+  <circle cx="70" cy="94" r="2.5" fill="#fff" opacity="0.5"/>
+
+  <!-- Œil droit qui cligne (clin d'œil signature) -->
+  <path d="M108 88 Q128 72 148 88 Q128 82 108 88Z" fill="#1a1a1a"/>
+  <path d="M112 90 Q128 78 144 90" fill="none" stroke="#1a1a1a" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Sourcils expressifs -->
+  <path d="M50 68 Q72 58 92 68" fill="none" stroke="#8a0c12" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+  <path d="M108 68 Q128 56 150 70" fill="none" stroke="#8a0c12" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Bec -->
+  <path d="M100 98 L112 118 L88 118 Z" fill="#f5b800"/>
+  <path d="M100 102 L106 114 L94 114 Z" fill="#e39a00"/>
+
+  <!-- Joues rosées -->
+  <ellipse cx="48" cy="108" rx="10" ry="7" fill="#ff7a7a" opacity="0.45"/>
+  <ellipse cx="152" cy="108" rx="10" ry="7" fill="#ff7a7a" opacity="0.45"/>
+
+  <!-- Pattes -->
+  <path d="M78 200 Q74 210 68 214" fill="none" stroke="#f5b800" stroke-width="5" stroke-linecap="round"/>
+  <path d="M84 202 Q84 212 80 216" fill="none" stroke="#f5b800" stroke-width="5" stroke-linecap="round"/>
+  <path d="M90 200 Q94 210 98 214" fill="none" stroke="#f5b800" stroke-width="5" stroke-linecap="round"/>
+  <path d="M110 200 Q106 210 102 214" fill="none" stroke="#f5b800" stroke-width="5" stroke-linecap="round"/>
+  <path d="M116 202 Q116 212 120 216" fill="none" stroke="#f5b800" stroke-width="5" stroke-linecap="round"/>
+  <path d="M122 200 Q128 210 132 214" fill="none" stroke="#f5b800" stroke-width="5" stroke-linecap="round"/>
+</svg>

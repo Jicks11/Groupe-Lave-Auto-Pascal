@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: groupe-lave-auto-pascal
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: LAVE_AUTO_ADMIN_PIN
+        value: "2020"
+      - key: LAVE_AUTO_DATA_PATH
+        value: /app/data/lave-auto-state.json
