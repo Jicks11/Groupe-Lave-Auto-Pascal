@@ -26,7 +26,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-23" />
+    <link rel="stylesheet" href="styles.css?v=20260722-24" />
   </head>
   <body>
     <div class="startup-overlay" id="startupOverlay" role="status" aria-live="polite">
@@ -82,8 +82,15 @@
         </section>
 
         <section class="content-grid">
-          <!-- historique masqué (id gardé pour le JS) -->
-          <div hidden id="historyList"></div>
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Historique</p>
+                <h2>Paiements et retraits</h2>
+              </div>
+            </div>
+            <div class="history-list" id="historyList"></div>
+          </article>
 
           <article class="panel admin-panel admin-panel--simple" id="adminPanel">
             <div class="panel-heading admin-heading-simple">
@@ -130,7 +137,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260722-23"></script>
+    <script src="app.js?v=20260722-24"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {

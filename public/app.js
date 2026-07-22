@@ -890,8 +890,37 @@ function renderDetail() {
 }
 
 function renderHistory() {
-  // Panneau historique retiré de l'UI (page simple)
-  if (els.historyList) els.historyList.innerHTML = "";
+  if (!els.historyList) return;
+
+  const list = [...state.payments]
+    .sort(
+      (a, b) =>
+        String(b.date).localeCompare(String(a.date)) ||
+        String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+    )
+    .slice(0, 40);
+
+  if (!list.length) {
+    els.historyList.innerHTML = "<p class='muted'>Aucun paiement ni retrait pour l'instant.</p>";
+    return;
+  }
+
+  els.historyList.innerHTML = list
+    .map((p) => {
+      const member = state.members.find((m) => m.id === p.memberId);
+      const name = member?.name || "Membre";
+      const isFee = isFeeEntry(p);
+      const sign = isFee ? "−" : "+";
+      const kind = isFee ? "Retrait (prélèvement)" : escapeHtml(p.mode || "Paiement");
+      return `
+        <div class="history-item">
+          <strong style="color:${isFee ? "#ff6b78" : "#3dff9a"}">${escapeHtml(name)} · ${sign}${money(p.amount)}</strong>
+          <small>${formatDate(p.date)} · ${yearMonthLabel(p.yearMonth)} · ${kind}${
+            p.note ? " · " + escapeHtml(p.note) : ""
+          }</small>
+        </div>`;
+    })
+    .join("");
 }
 
 function renderHeroAndMetrics() {
