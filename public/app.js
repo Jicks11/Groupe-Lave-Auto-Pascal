@@ -36,8 +36,59 @@ const DEFAULT_MEMBERS = [
 ];
 
 function seedAugustPayments() {
-  // Départ à neuf : aucun paiement / retrait en historique
-  return [];
+  // Soldes de référence (feuille du groupe)
+  const ym = "2026-08";
+  const paidFull = ["m1", "m2", "m3", "m5", "m7", "m8"];
+  const payments = paidFull.map((memberId, i) => ({
+    id: `seed_aug_${memberId}`,
+    type: "payment",
+    memberId,
+    yearMonth: ym,
+    amount: 39.6,
+    date: "2026-07-20",
+    mode: memberId === "m1" ? "Propriétaire" : "Interac",
+    note: "Août payé",
+    createdAt: `2026-07-22T12:00:0${i}.000Z`
+  }));
+  // Nancy : reste 6,20 $
+  payments.push({
+    id: "seed_aug_m4",
+    type: "payment",
+    memberId: "m4",
+    yearMonth: ym,
+    amount: 33.4,
+    date: "2026-07-20",
+    mode: "Interac",
+    note: "Partiel — reste 6,20 $",
+    createdAt: "2026-07-22T12:00:10.000Z"
+  });
+  // Réjean : surplus 27,20 $
+  payments.push({
+    id: "seed_surplus_m7",
+    type: "payment",
+    memberId: "m7",
+    yearMonth: ym,
+    amount: 27.2,
+    date: "2026-07-20",
+    mode: "Interac",
+    note: "27,20 $ en surplus",
+    createdAt: "2026-07-22T12:00:11.000Z"
+  });
+  // Luc : août + septembre + octobre
+  for (const [i, lucYm] of ["2026-08", "2026-09", "2026-10"].entries()) {
+    payments.push({
+      id: `seed_luc_${lucYm}`,
+      type: "payment",
+      memberId: "m9",
+      yearMonth: lucYm,
+      amount: 39.6,
+      date: lucYm === "2026-08" ? "2026-07-20" : lucYm === "2026-09" ? "2026-08-20" : "2026-09-20",
+      mode: "Interac",
+      note: `Payé ${lucYm}`,
+      createdAt: `2026-07-22T12:00:1${i}.000Z`
+    });
+  }
+  return payments;
 }
 
 function createDefaultState() {
