@@ -3,8 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#06151c" />
+    <meta name="theme-color" content="#e31c23" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Lave-auto" />
+    <meta name="application-name" content="Lave-auto" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Groupe Lave-auto Couche-Tard (Pascal) — cotisations mensuelles" />
     <title>Groupe Lave-auto Couche-Tard (Pascal)</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" sizes="180x180" />
+    <link rel="icon" href="assets/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="icon" href="assets/icon-512.png" type="image/png" sizes="512x512" />
     <style>
       html, body {
         margin: 0;
@@ -14,8 +26,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-13" />
-    <link rel="icon" href="assets/hibou-rouge.jpg?v=5" type="image/jpeg" />
+    <link rel="stylesheet" href="styles.css?v=20260722-16" />
   </head>
   <body>
     <div class="startup-overlay" id="startupOverlay" role="status" aria-live="polite">
@@ -239,6 +250,13 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260722-15"></script>
+    <script src="app.js?v=20260722-16"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("./sw.js").catch(function () {});
+        });
+      }
+    </script>
   </body>
 </html>
