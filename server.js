@@ -25,15 +25,57 @@ app.use(
 );
 app.use(express.json({ limit: "3mb" }));
 
-// Si quelqu’un ouvre encore l’URL Render « nue », redirige vers le site propre (GitHub Pages)
-// sauf pour /api/* et les assets déjà servis ici.
-const PUBLIC_SITE = process.env.LAVE_AUTO_PUBLIC_SITE || "https://jicks11.github.io/Groupe-Lave-Auto-Pascal/";
-app.use((req, res, next) => {
-  if (req.path.startsWith("/api/")) return next();
-  // Laisser le front Render fonctionner aussi (fallback) — pas de redirect forcé
-  // pour éviter de casser si Pages n’est pas encore actif.
-  next();
-});
+/**
+ * Ancien lien Render déjà envoyé aux participants → redirection vers le site propre.
+ * /api/* reste sur Render (données partagées).
+ */
+const PUBLIC_SITE =
+  process.env.LAVE_AUTO_PUBLIC_SITE || "https://jicks11.github.io/Groupe-Lave-Auto-Pascal/";
+const REDIRECT_ENABLED = process.env.LAVE_AUTO_REDIRECT !== "0";
+
+function wantsHtml(req) {
+  const accept = String(req.headers.accept || "");
+  return accept.includes("text/html") || req.method === "GET";
+}
+
+function redirectToPublicSite(req, res) {
+  const target = PUBLIC_SITE.replace(/\/?$/, "/");
+  // 302 pour pouvoir désactiver plus tard si besoin
+  res.set("Cache-Control", "no-store");
+  return res.redirect(302, target);
+}
+
+/** Page de secours branding (si redirect bloqué) */
+function brandedRedirectHtml() {
+  const target = PUBLIC_SITE.replace(/\/?$/, "/");
+  return `<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="refresh" content="0;url=${target}" />
+  <title>Groupe Lave-auto</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#06151c;color:#f0fbff;
+      font-family:Segoe UI,system-ui,sans-serif;display:grid;place-items:center}
+    .card{text-align:center;padding:28px;max-width:360px}
+    .logo{width:88px;height:88px;margin:0 auto 12px;border-radius:14px;background:#fff;
+      display:grid;place-items:center;border:2px solid #e31c23}
+    .name{color:#00205b;font-weight:900;background:#fff;display:inline-block;
+      padding:4px 12px;border-radius:8px;margin-top:6px}
+    a{color:#2fe0ff}
+  </style>
+  <script>location.replace(${JSON.stringify(target)});</script>
+</head>
+<body>
+  <div class="card">
+    <div class="logo"><span class="name">Pascal</span></div>
+    <p>Ouverture du groupe…</p>
+    <p><a href="${target}">Continuer</a></p>
+  </div>
+</body>
+</html>`;
+}
 
 function ensureDataDir() {
   const dir = path.dirname(DATA_PATH);
@@ -110,13 +152,34 @@ app.post("/api/state", (req, res) => {
   }
 });
 
-// Fichiers publics
+// Fichiers publics (fallback local / si redirect désactivé)
 const publicDir = path.join(__dirname, "public");
+
+// Lien Render déjà partagé → envoie tout le monde vers GitHub Pages (sauf /api)
+app.get(["/", "/index.html"], (req, res) => {
+  if (REDIRECT_ENABLED) {
+    // Page branding + redirect JS (meilleur que rester sur Render)
+    res.set("Cache-Control", "no-store");
+    return res.status(200).type("html").send(brandedRedirectHtml());
+  }
+  return res.sendFile(path.join(publicDir, "index.html"));
+});
+
+app.use((req, res, next) => {
+  if (!REDIRECT_ENABLED) return next();
+  if (req.path.startsWith("/api/")) return next();
+  // Assets/API non concernés : pages HTML → redirect
+  if (wantsHtml(req) && (req.path === "/" || req.path.endsWith(".html") || !path.extname(req.path))) {
+    return redirectToPublicSite(req, res);
+  }
+  next();
+});
+
 app.use(express.static(publicDir, { extensions: ["html"] }));
 
-// SPA fallback
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
+  if (REDIRECT_ENABLED) return redirectToPublicSite(req, res);
   const index = path.join(publicDir, "index.html");
   if (fs.existsSync(index)) return res.sendFile(index);
   res.status(404).send("Not found");
@@ -126,4 +189,7 @@ ensureDataDir();
 app.listen(PORT, () => {
   console.log(`Lave-auto listening on :${PORT}`);
   console.log(`Data file: ${DATA_PATH}`);
+  if (REDIRECT_ENABLED) {
+    console.log(`Browser redirect → ${PUBLIC_SITE}`);
+  }
 });
