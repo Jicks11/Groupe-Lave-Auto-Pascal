@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#e31c23" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pascal" />
+    <meta name="application-name" content="Pascal" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Groupe Lave-auto Couche-Tard — cotisations mensuelles" />
+    <title>Groupe Lave-auto Couche-Tard</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/favicon-32.png?v=19" type="image/png" sizes="32x32" />
+    <link rel="icon" href="assets/favicon-16.png?v=19" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=19" sizes="180x180" />
+    <link rel="icon" href="assets/icon-192.png?v=19" type="image/png" sizes="192x192" />
+    <link rel="icon" href="assets/icon-512.png?v=19" type="image/png" sizes="512x512" />
+    <style>
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #06151c !important;
+        color: #f0fbff !important;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+    </style>
+    <link rel="stylesheet" href="styles.css?v=20260722-26" />
+    <!-- Réveil API en arrière-plan dès le HTML (évite l’écran hébergeur si le site est sur Pages) -->
+    <script>
+      window.LAVE_AUTO_API_ORIGIN = window.LAVE_AUTO_API_ORIGIN || (
+        /onrender\.com$/i.test(location.hostname) || location.hostname === "localhost" || location.hostname === "127.0.0.1"
+          ? ""
+          : "https://groupe-lave-auto-pascal.onrender.com"
+      );
+      (function wakeEarly() {
+        var base = (window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "") + "/api";
+        try {
+          fetch(base + "/ping", { cache: "no-store", mode: "cors" }).catch(function () {});
+          fetch(base + "/state", { cache: "no-store", mode: "cors" }).catch(function () {});
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="startup-overlay" id="startupOverlay" role="status" aria-live="polite">
+      <div class="startup-card">
+        <div class="startup-logo startup-logo--owl">
+          <img src="assets/hibou-seul.png?v=19" alt="" width="72" height="72" />
+          <span class="logo-caption">Pascal</span>
+        </div>
+        <p class="eyebrow">Groupe Lave-auto Couche-Tard</p>
+        <h2>Chargement</h2>
+        <p id="startupMessage">Ouverture du groupe…</p>
+        <div class="startup-progress" aria-hidden="true">
+          <span id="startupProgress"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <div class="logo-card logo-card--owl">
+            <img class="group-logo" src="assets/hibou-seul.png?v=19" alt="Logo Pascal — Lave-auto Couche-Tard" width="72" height="72" />
+            <span class="logo-caption">Pascal</span>
+          </div>
+          <div>
+            <p class="eyebrow">Abonnement mensuel · 9 membres</p>
+            <h1>Groupe Lave-auto Couche-Tard</h1>
+          </div>
+        </div>
+        <div class="status-strip">
+          <span id="lastUpdated">Derni&egrave;re mise &agrave; jour: …</span>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="sheet-only">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Feuille du groupe</p>
+                <h2>Pr&eacute;nom, nom et solde</h2>
+              </div>
+              <span class="pill" id="paidPill">0 pay&eacute;s</span>
+            </div>
+            <div class="participant-list balance-table" id="participantList"></div>
+          </article>
+          <!-- détail participant masqué (garde les ids pour le JS admin) -->
+          <div hidden>
+            <h2 id="detailTitle">Participant</h2>
+            <span id="detailStatus">—</span>
+            <div id="memberDetail"></div>
+          </div>
+        </section>
+
+        <section class="content-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Historique</p>
+                <h2>Paiements et retraits</h2>
+              </div>
+            </div>
+            <div class="history-list" id="historyList"></div>
+          </article>
+
+          <article class="panel admin-panel locked" id="adminPanel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Administrateur</p>
+                <h2>Pascal</h2>
+              </div>
+              <button class="ghost-button compact-button" id="adminToggle" type="button">Mode Admin</button>
+            </div>
+
+            <div class="admin-locked" id="adminLocked" hidden></div>
+
+            <div class="admin-content" id="adminContent">
+              <form id="paymentForm" class="admin-grid">
+                <div class="field">
+                  <label for="payMember">Membre</label>
+                  <select id="payMember" required></select>
+                </div>
+                <div class="field">
+                  <label for="payMonth">Mois couvert</label>
+                  <input id="payMonth" type="month" required />
+                </div>
+                <div class="field">
+                  <label for="payAmount">Montant ($)</label>
+                  <input id="payAmount" type="number" step="0.01" min="0" value="39.60" required />
+                </div>
+                <div class="field">
+                  <label for="payDate">Date re&ccedil;ue</label>
+                  <input id="payDate" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="payMode">Mode</label>
+                  <select id="payMode">
+                    <option>Interac</option>
+                    <option>Comptant</option>
+                    <option>Virement</option>
+                    <option>Autre</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="payNote">Note</label>
+                  <input id="payNote" type="text" maxlength="120" placeholder="Optionnel" />
+                </div>
+                <div class="field full form-actions">
+                  <button class="accent-button" type="submit">Enregistrer le paiement</button>
+                  <button class="ghost-button" id="markAllPaid" type="button">Marquer tous pay&eacute;s (mois)</button>
+                </div>
+              </form>
+
+              <hr class="admin-sep" />
+
+              <form id="memberForm" class="admin-grid">
+                <div class="field">
+                  <label for="editMember">Renommer membre</label>
+                  <select id="editMember"></select>
+                </div>
+                <div class="field">
+                  <label for="editName">Nouveau nom</label>
+                  <input id="editName" type="text" maxlength="60" placeholder="Ex: Alex" />
+                </div>
+                <div class="field">
+                  <label for="editActive">Actif</label>
+                  <select id="editActive">
+                    <option value="true">Oui</option>
+                    <option value="false">Non</option>
+                  </select>
+                </div>
+                <div class="field form-actions" style="align-content:end;">
+                  <button class="accent-button" type="submit">Sauvegarder le membre</button>
+                </div>
+              </form>
+
+              <hr class="admin-sep" />
+
+              <form id="settingsForm" class="admin-grid">
+                <div class="field">
+                  <label for="settingFee">Cotisation mensuelle ($)</label>
+                  <input id="settingFee" type="number" step="0.01" min="0" />
+                </div>
+                <div class="field">
+                  <label for="settingDueDay">Jour d'&eacute;ch&eacute;ance (1–28)</label>
+                  <input id="settingDueDay" type="number" min="1" max="28" />
+                </div>
+                <div class="field full form-actions">
+                  <button class="accent-button" type="submit">Enregistrer r&eacute;glages</button>
+                  <button class="ghost-button" id="exportData" type="button">Exporter JSON</button>
+                  <button class="ghost-button" id="importData" type="button">Importer JSON</button>
+                  <input id="importFile" type="file" accept="application/json,.json" hidden />
+                </div>
+              </form>
+
+              <p class="admin-note" id="adminNote" hidden></p>
+            </div>
+          </article>
+        </section>
+
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js?v=20260722-26"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("./sw.js").catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>
