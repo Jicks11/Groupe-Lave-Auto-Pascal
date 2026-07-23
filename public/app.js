@@ -13,14 +13,72 @@ const SHEET_SEED_VERSION = "feuille-2026-07-22-autofee";
 const FEE_START_YEAR_MONTH = "2026-08";
 const FEE_CHECK_INTERVAL_MS = 30000;
 const REFRESH_INTERVAL_MS = 25000;
+/** API backend (Render). Le site peut être servi ailleurs (GitHub Pages) pour un chargement immédiat. */
+const DEFAULT_API_ORIGIN = "https://groupe-lave-auto-pascal.onrender.com";
 
-/** Même origine en prod Render ; override possible via window.LAVE_AUTO_API_ORIGIN */
-const API_ORIGIN = String(window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "");
+function resolveApiOrigin() {
+  if (window.LAVE_AUTO_API_ORIGIN) {
+    return String(window.LAVE_AUTO_API_ORIGIN).replace(/\/$/, "");
+  }
+  const host = (window.location.hostname || "").toLowerCase();
+  // Sur Render : même origine. Sinon (Pages, local file, etc.) → API Render.
+  if (host.endsWith("onrender.com") || host === "localhost" || host === "127.0.0.1") {
+    return "";
+  }
+  return DEFAULT_API_ORIGIN;
+}
+
+const API_ORIGIN = resolveApiOrigin();
 const API_BASE = `${API_ORIGIN}/api`;
 
 let serverSyncEnabled = true;
 let serverSaveInFlight = false;
 let lastServerUpdatedAt = null;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Réveille l’API en arrière-plan avec messages de groupe (pas d’écran hébergeur). */
+async function wakeAndPullState() {
+  const maxAttempts = 45;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const pct = Math.min(92, 12 + attempt * 2);
+    if (els.startupProgress) els.startupProgress.style.width = `${pct}%`;
+    if (attempt === 0) {
+      setText(els.startupMessage, "Ouverture du groupe…");
+    } else if (attempt < 4) {
+      setText(els.startupMessage, "Préparation des soldes…");
+    } else if (attempt < 12) {
+      setText(els.startupMessage, "Chargement en cours, un instant…");
+    } else {
+      setText(els.startupMessage, "Presque prêt… merci de patienter.");
+    }
+
+    try {
+      // Ping léger pour réveiller le service
+      await fetch(`${API_BASE}/ping`, { method: "GET", cache: "no-store", mode: "cors" });
+    } catch {
+      /* ignore */
+    }
+
+    const source = await pullStateFromServer();
+    if (source === "server" || source === "empty") {
+      return source;
+    }
+
+    await sleep(attempt < 5 ? 1500 : 2500);
+  }
+  return "offline";
+}
+
+// Réveil le plus tôt possible (dès le parse du script)
+try {
+  fetch(`${API_BASE}/ping`, { method: "GET", cache: "no-store", mode: "cors" }).catch(() => {});
+  fetch(`${API_BASE}/state`, { method: "GET", cache: "no-store", mode: "cors" }).catch(() => {});
+} catch {
+  /* ignore */
+}
 
 // Noms + soldes d’après la feuille Couche-Tard (22 juillet 2026)
 const DEFAULT_MEMBERS = [
@@ -1160,33 +1218,39 @@ els.importFile.addEventListener("change", async () => {
 
 // boot
 (async function boot() {
-  if (els.startupProgress) els.startupProgress.style.width = "40%";
-  setText(els.startupMessage, "Connexion au serveur du groupe…");
+  if (els.startupProgress) els.startupProgress.style.width = "18%";
+  setText(els.startupMessage, "Ouverture du groupe…");
 
-  const source = await pullStateFromServer();
-  if (els.startupProgress) els.startupProgress.style.width = "75%";
+  // Affiche tout de suite l’UI (cache local) pendant que l’API se réveille
+  const cached = loadState();
+  if (cached?.members?.length) {
+    state = cached;
+    render();
+  }
+
+  const source = await wakeAndPullState();
+  if (els.startupProgress) els.startupProgress.style.width = "88%";
 
   if (source === "empty") {
-    // Première mise en ligne : publier l'état par défaut (membres + soldes feuille)
     state = loadState();
-    setText(els.startupMessage, "Initialisation des soldes sur le serveur…");
+    setText(els.startupMessage, "Initialisation des soldes…");
     await seedServerIfEmpty();
   } else if (source === "offline") {
     state = loadState();
-    setText(els.startupMessage, "Mode hors-ligne (données locales)…");
+    setText(els.startupMessage, "Données locales (connexion limitée)…");
   } else {
-    setText(els.startupMessage, "Soldes chargés depuis le serveur…");
+    setText(els.startupMessage, "Soldes à jour.");
   }
 
   applyScheduledMonthlyFees(new Date(), { silent: true });
-  // Si admin session active, republier après prélèvements auto
   if (sessionStorage.getItem(ADMIN_PIN_KEY)) {
     await pushStateToServer();
   }
 
   render();
   if (els.startupProgress) els.startupProgress.style.width = "100%";
-  setTimeout(() => els.startupOverlay?.classList.add("hidden"), 120);
+  setText(els.startupMessage, "Prêt.");
+  setTimeout(() => els.startupOverlay?.classList.add("hidden"), 180);
 
   // Prélèvement auto le 20 à 00:01
   window.setInterval(() => {

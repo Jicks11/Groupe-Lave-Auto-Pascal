@@ -26,7 +26,22 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-25" />
+    <link rel="stylesheet" href="styles.css?v=20260722-26" />
+    <!-- Réveil API en arrière-plan dès le HTML (évite l’écran hébergeur si le site est sur Pages) -->
+    <script>
+      window.LAVE_AUTO_API_ORIGIN = window.LAVE_AUTO_API_ORIGIN || (
+        /onrender\.com$/i.test(location.hostname) || location.hostname === "localhost" || location.hostname === "127.0.0.1"
+          ? ""
+          : "https://groupe-lave-auto-pascal.onrender.com"
+      );
+      (function wakeEarly() {
+        var base = (window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "") + "/api";
+        try {
+          fetch(base + "/ping", { cache: "no-store", mode: "cors" }).catch(function () {});
+          fetch(base + "/state", { cache: "no-store", mode: "cors" }).catch(function () {});
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div class="startup-overlay" id="startupOverlay" role="status" aria-live="polite">
@@ -37,7 +52,7 @@
         </div>
         <p class="eyebrow">Groupe Lave-auto Couche-Tard</p>
         <h2>Chargement</h2>
-        <p id="startupMessage">Pr&eacute;paration du suivi mensuel…</p>
+        <p id="startupMessage">Ouverture du groupe…</p>
         <div class="startup-progress" aria-hidden="true">
           <span id="startupProgress"></span>
         </div>
@@ -191,7 +206,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260722-25"></script>
+    <script src="app.js?v=20260722-26"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {

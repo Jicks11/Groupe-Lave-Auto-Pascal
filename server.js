@@ -16,8 +16,24 @@ const DATA_PATH =
 const ADMIN_PIN = process.env.LAVE_AUTO_ADMIN_PIN || process.env.ADMIN_PIN || "2020";
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
+  })
+);
 app.use(express.json({ limit: "3mb" }));
+
+// Si quelqu’un ouvre encore l’URL Render « nue », redirige vers le site propre (GitHub Pages)
+// sauf pour /api/* et les assets déjà servis ici.
+const PUBLIC_SITE = process.env.LAVE_AUTO_PUBLIC_SITE || "https://jicks11.github.io/Groupe-Lave-Auto-Pascal/";
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/")) return next();
+  // Laisser le front Render fonctionner aussi (fallback) — pas de redirect forcé
+  // pour éviter de casser si Pages n’est pas encore actif.
+  next();
+});
 
 function ensureDataDir() {
   const dir = path.dirname(DATA_PATH);
