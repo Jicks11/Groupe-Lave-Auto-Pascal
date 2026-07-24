@@ -26,19 +26,14 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260722-26" />
-    <!-- Réveil API en arrière-plan dès le HTML (évite l’écran hébergeur si le site est sur Pages) -->
+    <link rel="stylesheet" href="styles.css?v=20260723-app" />
+    <!-- Même origine que Loto : API + UI sur Render -->
     <script>
-      window.LAVE_AUTO_API_ORIGIN = window.LAVE_AUTO_API_ORIGIN || (
-        /onrender\.com$/i.test(location.hostname) || location.hostname === "localhost" || location.hostname === "127.0.0.1"
-          ? ""
-          : "https://groupe-lave-auto-pascal.onrender.com"
-      );
+      window.LAVE_AUTO_API_ORIGIN = "";
       (function wakeEarly() {
-        var base = (window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "") + "/api";
         try {
-          fetch(base + "/ping", { cache: "no-store", mode: "cors" }).catch(function () {});
-          fetch(base + "/state", { cache: "no-store", mode: "cors" }).catch(function () {});
+          fetch("/api/ping", { cache: "no-store" }).catch(function () {});
+          fetch("/api/state", { cache: "no-store" }).catch(function () {});
         } catch (e) {}
       })();
     </script>
@@ -206,7 +201,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260722-26"></script>
+    <script src="app.js?v=20260723-app"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {

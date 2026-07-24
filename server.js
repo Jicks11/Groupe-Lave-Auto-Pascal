@@ -1,7 +1,7 @@
 /**
  * Groupe Lave-auto Couche-Tard
- * API d'état partagé + fichiers statiques
- * Indépendant des groupes Loto Max / 6/49
+ * Même logique que les groupes Loto : app complète (UI + API) sur Render,
+ * données persistantes en PostgreSQL si DATABASE_URL est défini.
  */
 const express = require("express");
 const cors = require("cors");
@@ -14,6 +14,96 @@ const DATA_PATH =
   process.env.DATA_PATH ||
   path.join(__dirname, "data", "state.json");
 const ADMIN_PIN = process.env.LAVE_AUTO_ADMIN_PIN || process.env.ADMIN_PIN || "2020";
+const DATABASE_URL =
+  process.env.DATABASE_URL ||
+  process.env.SUPABASE_DB_CONNECTION ||
+  process.env.LAVE_AUTO_DATABASE_URL ||
+  "";
+
+let pool = null;
+
+async function initDb() {
+  if (!DATABASE_URL) {
+    console.log("Storage: file", DATA_PATH);
+    return;
+  }
+  try {
+    const { Pool } = require("pg");
+    pool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }
+    });
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lave_auto_state (
+        id integer PRIMARY KEY DEFAULT 1,
+        payload jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    console.log("Storage: postgres (lave_auto_state)");
+  } catch (err) {
+    console.error("Postgres init failed, fallback file:", err.message);
+    pool = null;
+  }
+}
+
+function ensureDataDir() {
+  const dir = path.dirname(DATA_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+async function readState() {
+  if (pool) {
+    try {
+      const result = await pool.query(
+        "SELECT payload FROM lave_auto_state WHERE id = 1 LIMIT 1"
+      );
+      if (result.rows[0]?.payload) {
+        return result.rows[0].payload;
+      }
+      return null;
+    } catch (err) {
+      console.error("readState pg:", err.message);
+    }
+  }
+  try {
+    if (!fs.existsSync(DATA_PATH)) return null;
+    const raw = fs.readFileSync(DATA_PATH, "utf8");
+    if (!raw.trim()) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("readState file:", err.message);
+    return null;
+  }
+}
+
+async function writeState(state) {
+  if (pool) {
+    await pool.query(
+      `
+      INSERT INTO lave_auto_state (id, payload, updated_at)
+      VALUES (1, $1::jsonb, now())
+      ON CONFLICT (id)
+      DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
+      `,
+      [JSON.stringify(state)]
+    );
+    // Miroir fichier (secours)
+    try {
+      ensureDataDir();
+      fs.writeFileSync(DATA_PATH, JSON.stringify(state, null, 2), "utf8");
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+  ensureDataDir();
+  const tmp = `${DATA_PATH}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2), "utf8");
+  fs.renameSync(tmp, DATA_PATH);
+}
 
 const app = express();
 app.use(
@@ -25,114 +115,38 @@ app.use(
 );
 app.use(express.json({ limit: "3mb" }));
 
-/**
- * Ancien lien Render déjà envoyé aux participants → redirection vers le site propre.
- * /api/* reste sur Render (données partagées).
- */
-const PUBLIC_SITE =
-  process.env.LAVE_AUTO_PUBLIC_SITE || "https://jicks11.github.io/Groupe-Lave-Auto-Pascal/";
-const REDIRECT_ENABLED = process.env.LAVE_AUTO_REDIRECT !== "0";
-
-function wantsHtml(req) {
-  const accept = String(req.headers.accept || "");
-  return accept.includes("text/html") || req.method === "GET";
-}
-
-function redirectToPublicSite(req, res) {
-  const target = PUBLIC_SITE.replace(/\/?$/, "/");
-  // 302 pour pouvoir désactiver plus tard si besoin
-  res.set("Cache-Control", "no-store");
-  return res.redirect(302, target);
-}
-
-/** Page de secours branding (si redirect bloqué) */
-function brandedRedirectHtml() {
-  const target = PUBLIC_SITE.replace(/\/?$/, "/");
-  return `<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="refresh" content="0;url=${target}" />
-  <title>Groupe Lave-auto</title>
-  <style>
-    html,body{margin:0;min-height:100%;background:#06151c;color:#f0fbff;
-      font-family:Segoe UI,system-ui,sans-serif;display:grid;place-items:center}
-    .card{text-align:center;padding:28px;max-width:360px}
-    .logo{width:88px;height:88px;margin:0 auto 12px;border-radius:14px;background:#fff;
-      display:grid;place-items:center;border:2px solid #e31c23}
-    .name{color:#00205b;font-weight:900;background:#fff;display:inline-block;
-      padding:4px 12px;border-radius:8px;margin-top:6px}
-    a{color:#2fe0ff}
-  </style>
-  <script>location.replace(${JSON.stringify(target)});</script>
-</head>
-<body>
-  <div class="card">
-    <div class="logo"><span class="name">Pascal</span></div>
-    <p>Ouverture du groupe…</p>
-    <p><a href="${target}">Continuer</a></p>
-  </div>
-</body>
-</html>`;
-}
-
-function ensureDataDir() {
-  const dir = path.dirname(DATA_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-function readState() {
-  try {
-    if (!fs.existsSync(DATA_PATH)) return null;
-    const raw = fs.readFileSync(DATA_PATH, "utf8");
-    if (!raw.trim()) return null;
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error("readState error", err.message);
-    return null;
-  }
-}
-
-function writeState(state) {
-  ensureDataDir();
-  const tmp = `${DATA_PATH}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(state, null, 2), "utf8");
-  fs.renameSync(tmp, DATA_PATH);
-}
-
 app.get("/api/ping", (_req, res) => {
   res.json({
     ok: true,
     app: "groupe-lave-auto",
+    storage: pool ? "postgres" : "file",
     at: new Date().toISOString()
   });
 });
 
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", async (_req, res) => {
+  const state = await readState();
   res.json({
     ok: true,
-    hasState: fs.existsSync(DATA_PATH),
+    hasState: !!state,
+    storage: pool ? "postgres" : "file",
     at: new Date().toISOString()
   });
 });
 
-/** Lecture publique de l'état (soldes visibles par tout le groupe) */
-app.get("/api/state", (_req, res) => {
-  const state = readState();
+app.get("/api/state", async (_req, res) => {
+  const state = await readState();
   res.set("Cache-Control", "no-store");
   res.json({
     ok: true,
     state,
     updatedAt: state?.updatedAt || null,
-    source: state ? "server" : "empty"
+    source: state ? "server" : "empty",
+    storage: pool ? "postgres" : "file"
   });
 });
 
-/** Écriture réservée au PIN admin */
-app.post("/api/state", (req, res) => {
+app.post("/api/state", async (req, res) => {
   const pin = String(req.body?.adminPin || "");
   if (pin !== ADMIN_PIN) {
     return res.status(401).json({ ok: false, error: "PIN admin incorrect" });
@@ -144,52 +158,45 @@ app.post("/api/state", (req, res) => {
   state.updatedAt = new Date().toISOString();
   state.groupName = state.groupName || "Groupe Lave-auto Couche-Tard";
   try {
-    writeState(state);
-    return res.json({ ok: true, updatedAt: state.updatedAt });
+    await writeState(state);
+    return res.json({
+      ok: true,
+      updatedAt: state.updatedAt,
+      storage: pool ? "postgres" : "file"
+    });
   } catch (err) {
     console.error("writeState error", err.message);
     return res.status(500).json({ ok: false, error: "Erreur sauvegarde" });
   }
 });
 
-// Fichiers publics (fallback local / si redirect désactivé)
+// App complète même origine (comme Loto) — plus de redirect Pages
 const publicDir = path.join(__dirname, "public");
-
-// Lien Render déjà partagé → envoie tout le monde vers GitHub Pages (sauf /api)
-app.get(["/", "/index.html"], (req, res) => {
-  if (REDIRECT_ENABLED) {
-    // Page branding + redirect JS (meilleur que rester sur Render)
-    res.set("Cache-Control", "no-store");
-    return res.status(200).type("html").send(brandedRedirectHtml());
+app.use(express.static(publicDir, {
+  extensions: ["html"],
+  setHeaders(res, filePath) {
+    if (filePath.endsWith("sw.js")) {
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Service-Worker-Allowed", "/");
+    }
+    if (filePath.endsWith("manifest.webmanifest")) {
+      res.setHeader("Content-Type", "application/manifest+json; charset=utf-8");
+    }
   }
-  return res.sendFile(path.join(publicDir, "index.html"));
-});
-
-app.use((req, res, next) => {
-  if (!REDIRECT_ENABLED) return next();
-  if (req.path.startsWith("/api/")) return next();
-  // Assets/API non concernés : pages HTML → redirect
-  if (wantsHtml(req) && (req.path === "/" || req.path.endsWith(".html") || !path.extname(req.path))) {
-    return redirectToPublicSite(req, res);
-  }
-  next();
-});
-
-app.use(express.static(publicDir, { extensions: ["html"] }));
+}));
 
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
-  if (REDIRECT_ENABLED) return redirectToPublicSite(req, res);
   const index = path.join(publicDir, "index.html");
   if (fs.existsSync(index)) return res.sendFile(index);
   res.status(404).send("Not found");
 });
 
-ensureDataDir();
-app.listen(PORT, () => {
-  console.log(`Lave-auto listening on :${PORT}`);
-  console.log(`Data file: ${DATA_PATH}`);
-  if (REDIRECT_ENABLED) {
-    console.log(`Browser redirect → ${PUBLIC_SITE}`);
-  }
-});
+(async () => {
+  ensureDataDir();
+  await initDb();
+  app.listen(PORT, () => {
+    console.log(`Lave-auto listening on :${PORT}`);
+    console.log(`Storage: ${pool ? "postgres" : "file " + DATA_PATH}`);
+  });
+})();

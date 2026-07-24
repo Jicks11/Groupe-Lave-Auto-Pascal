@@ -17,15 +17,11 @@ const REFRESH_INTERVAL_MS = 25000;
 const DEFAULT_API_ORIGIN = "https://groupe-lave-auto-pascal.onrender.com";
 
 function resolveApiOrigin() {
-  if (window.LAVE_AUTO_API_ORIGIN) {
-    return String(window.LAVE_AUTO_API_ORIGIN).replace(/\/$/, "");
+  // Même logique que Loto : API = même origine que la page (Render)
+  if (window.LAVE_AUTO_API_ORIGIN != null && window.LAVE_AUTO_API_ORIGIN !== undefined) {
+    return String(window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "");
   }
-  const host = (window.location.hostname || "").toLowerCase();
-  // Sur Render : même origine. Sinon (Pages, local file, etc.) → API Render.
-  if (host.endsWith("onrender.com") || host === "localhost" || host === "127.0.0.1") {
-    return "";
-  }
-  return DEFAULT_API_ORIGIN;
+  return "";
 }
 
 const API_ORIGIN = resolveApiOrigin();
@@ -96,7 +92,8 @@ const DEFAULT_MEMBERS = [
 function seedAugustPayments() {
   // Soldes de référence (feuille du groupe)
   const ym = "2026-08";
-  const paidFull = ["m1", "m2", "m3", "m5", "m7", "m8"];
+  // m6 Alain Ashton inclus (payé)
+  const paidFull = ["m1", "m2", "m3", "m5", "m6", "m7", "m8"];
   const payments = paidFull.map((memberId, i) => ({
     id: `seed_aug_${memberId}`,
     type: "payment",
