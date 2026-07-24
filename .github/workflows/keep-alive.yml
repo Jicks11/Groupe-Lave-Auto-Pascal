@@ -1,0 +1,25 @@
+# Empêche le free tier Render de s'endormir (évite l'écran "Render" à l'ouverture)
+name: Keep Lave-auto awake
+
+on:
+  schedule:
+    # Toutes les 10 minutes
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health + homepage
+        run: |
+          set -e
+          BASE="https://groupe-lave-auto-pascal.onrender.com"
+          for i in 1 2 3; do
+            echo "Attempt $i"
+            curl -fsS -m 45 -o /dev/null -w "health:%{http_code}\n" "$BASE/api/health" || true
+            curl -fsS -m 45 -o /dev/null -w "home:%{http_code}\n" "$BASE/" || true
+            curl -fsS -m 45 -o /dev/null -w "ping:%{http_code}\n" "$BASE/api/ping" || true
+            sleep 5
+          done
