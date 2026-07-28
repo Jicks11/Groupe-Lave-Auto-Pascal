@@ -15,13 +15,19 @@ const FEE_CHECK_INTERVAL_MS = 30000;
 const REFRESH_INTERVAL_MS = 25000;
 /** API backend (Render). Le site peut être servi ailleurs (GitHub Pages) pour un chargement immédiat. */
 const DEFAULT_API_ORIGIN = "https://groupe-lave-auto-pascal.onrender.com";
+const LOCAL_HOSTS = new Set(["", "localhost", "127.0.0.1"]);
 
 function resolveApiOrigin() {
-  // Même logique que Loto : API = même origine que la page (Render)
+  // Override manuel (tests)
   if (window.LAVE_AUTO_API_ORIGIN != null && window.LAVE_AUTO_API_ORIGIN !== undefined) {
     return String(window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "");
   }
-  return "";
+  const host = String(window.location.hostname || "").toLowerCase();
+  // Sur Render / local : même origine. Ailleurs (GitHub Pages) : API Render.
+  if (LOCAL_HOSTS.has(host) || host.endsWith(".onrender.com")) {
+    return "";
+  }
+  return DEFAULT_API_ORIGIN.replace(/\/$/, "");
 }
 
 const API_ORIGIN = resolveApiOrigin();
@@ -37,22 +43,22 @@ function sleep(ms) {
 
 /** Réveille l’API en arrière-plan avec messages de groupe (pas d’écran hébergeur). */
 async function wakeAndPullState() {
-  const maxAttempts = 45;
+  // Max ~30s (évite page blanche / chargement infini si Render dort trop longtemps)
+  const maxAttempts = 12;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const pct = Math.min(92, 12 + attempt * 2);
+    const pct = Math.min(92, 18 + attempt * 6);
     if (els.startupProgress) els.startupProgress.style.width = `${pct}%`;
     if (attempt === 0) {
       setText(els.startupMessage, "Ouverture du groupe…");
-    } else if (attempt < 4) {
+    } else if (attempt < 3) {
       setText(els.startupMessage, "Préparation des soldes…");
-    } else if (attempt < 12) {
-      setText(els.startupMessage, "Chargement en cours, un instant…");
+    } else if (attempt < 7) {
+      setText(els.startupMessage, "Réveil du serveur… un instant");
     } else {
-      setText(els.startupMessage, "Presque prêt… merci de patienter.");
+      setText(els.startupMessage, "Connexion lente — affichage local…");
     }
 
     try {
-      // Ping léger pour réveiller le service
       await fetch(`${API_BASE}/ping`, { method: "GET", cache: "no-store", mode: "cors" });
     } catch {
       /* ignore */
@@ -63,7 +69,7 @@ async function wakeAndPullState() {
       return source;
     }
 
-    await sleep(attempt < 5 ? 1500 : 2500);
+    await sleep(attempt < 4 ? 1200 : 2000);
   }
   return "offline";
 }
@@ -1213,60 +1219,113 @@ els.importFile.addEventListener("change", async () => {
   }
 });
 
-// boot
+// boot — toujours afficher l’UI (jamais page blanche / overlay infini)
 (async function boot() {
-  if (els.startupProgress) els.startupProgress.style.width = "18%";
-  setText(els.startupMessage, "Ouverture du groupe…");
-
-  // Affiche tout de suite l’UI (cache local) pendant que l’API se réveille
-  const cached = loadState();
-  if (cached?.members?.length) {
-    state = cached;
-    render();
-  }
-
-  const source = await wakeAndPullState();
-  if (els.startupProgress) els.startupProgress.style.width = "88%";
-
-  if (source === "empty") {
-    state = loadState();
-    setText(els.startupMessage, "Initialisation des soldes…");
-    await seedServerIfEmpty();
-  } else if (source === "offline") {
-    state = loadState();
-    setText(els.startupMessage, "Données locales (connexion limitée)…");
-  } else {
-    setText(els.startupMessage, "Soldes à jour.");
-  }
-
-  applyScheduledMonthlyFees(new Date(), { silent: true });
-  if (sessionStorage.getItem(ADMIN_PIN_KEY)) {
-    await pushStateToServer();
-  }
-
-  render();
-  if (els.startupProgress) els.startupProgress.style.width = "100%";
-  setText(els.startupMessage, "Prêt.");
-  setTimeout(() => els.startupOverlay?.classList.add("hidden"), 180);
-
-  // Prélèvement auto le 20 à 00:01
-  window.setInterval(() => {
-    if (!state) return;
-    const n = applyScheduledMonthlyFees(new Date(), { silent: false });
-    if (n > 0) {
-      if (sessionStorage.getItem(ADMIN_PIN_KEY)) pushStateToServer();
-      render();
+  const hideOverlay = () => {
+    try {
+      if (els.startupProgress) els.startupProgress.style.width = "100%";
+      els.startupOverlay?.classList.add("hidden");
+    } catch {
+      /* ignore */
     }
-  }, FEE_CHECK_INTERVAL_MS);
+  };
 
-  // Rafraîchit les soldes pour tout le groupe (lecture serveur)
-  window.setInterval(async () => {
-    if (!serverSyncEnabled || adminUnlocked) return; // admin en édition : pas d'écrasement
-    const prev = lastServerUpdatedAt;
-    const src = await pullStateFromServer();
-    if (src === "server" && lastServerUpdatedAt && lastServerUpdatedAt !== prev) {
+  try {
+    if (els.startupProgress) els.startupProgress.style.width = "18%";
+    setText(els.startupMessage, "Ouverture du groupe…");
+
+    // Affiche tout de suite l’UI (cache / défaut) pendant le réveil API
+    const cached = loadState() || createDefaultState();
+    if (cached?.members?.length) {
+      state = cached;
+      try {
+        render();
+      } catch (err) {
+        console.error("render cache", err);
+      }
+    }
+
+    // Filet de sécurité: masquer le chargement après 25s max
+    const safety = window.setTimeout(hideOverlay, 25000);
+
+    const source = await wakeAndPullState();
+    if (els.startupProgress) els.startupProgress.style.width = "88%";
+
+    if (source === "empty") {
+      state = loadState() || createDefaultState();
+      setText(els.startupMessage, "Initialisation des soldes…");
+      try {
+        await seedServerIfEmpty();
+      } catch (err) {
+        console.error("seed", err);
+      }
+    } else if (source === "offline") {
+      state = loadState() || createDefaultState();
+      setText(els.startupMessage, "Données locales (connexion limitée)…");
+    } else {
+      setText(els.startupMessage, "Soldes à jour.");
+    }
+
+    if (!state) state = createDefaultState();
+
+    try {
       applyScheduledMonthlyFees(new Date(), { silent: true });
-      render();
+    } catch {
+      /* ignore */
     }
-  }, REFRESH_INTERVAL_MS);
+    if (sessionStorage.getItem(ADMIN_PIN_KEY)) {
+      try {
+        await pushStateToServer();
+      } catch {
+        /* ignore */
+      }
+    }
+
+    try {
+      render();
+    } catch (err) {
+      console.error("render boot", err);
+    }
+
+    setText(els.startupMessage, "Prêt.");
+    window.clearTimeout(safety);
+    setTimeout(hideOverlay, 120);
+
+    window.setInterval(() => {
+      if (!state) return;
+      try {
+        const n = applyScheduledMonthlyFees(new Date(), { silent: false });
+        if (n > 0) {
+          if (sessionStorage.getItem(ADMIN_PIN_KEY)) pushStateToServer();
+          render();
+        }
+      } catch {
+        /* ignore */
+      }
+    }, FEE_CHECK_INTERVAL_MS);
+
+    window.setInterval(async () => {
+      if (!serverSyncEnabled || adminUnlocked) return;
+      try {
+        const prev = lastServerUpdatedAt;
+        const src = await pullStateFromServer();
+        if (src === "server" && lastServerUpdatedAt && lastServerUpdatedAt !== prev) {
+          applyScheduledMonthlyFees(new Date(), { silent: true });
+          render();
+        }
+      } catch {
+        /* ignore */
+      }
+    }, REFRESH_INTERVAL_MS);
+  } catch (fatal) {
+    console.error("boot fatal", fatal);
+    if (!state) state = createDefaultState();
+    try {
+      render();
+    } catch {
+      /* ignore */
+    }
+    setText(els.startupMessage, "Mode local — réessaie plus tard.");
+    hideOverlay();
+  }
 })();
