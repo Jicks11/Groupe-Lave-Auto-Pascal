@@ -3,23 +3,32 @@ name: Keep Lave-auto awake
 
 on:
   schedule:
-    # Toutes les 10 minutes
-    - cron: "*/10 * * * *"
+    # Toutes les 5 minutes (free tier s'endort ~15 min d'inactivité)
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: Ping health + homepage
+      - name: Ping API Render (wake cold start)
         run: |
-          set -e
+          set +e
           BASE="https://groupe-lave-auto-pascal.onrender.com"
-          for i in 1 2 3; do
-            echo "Attempt $i"
-            curl -fsS -m 45 -o /dev/null -w "health:%{http_code}\n" "$BASE/api/health" || true
-            curl -fsS -m 45 -o /dev/null -w "home:%{http_code}\n" "$BASE/" || true
-            curl -fsS -m 45 -o /dev/null -w "ping:%{http_code}\n" "$BASE/api/ping" || true
-            sleep 5
+          # Plusieurs tentatives: le 1er peut prendre 30-60s au réveil
+          for i in 1 2 3 4 5; do
+            echo "=== Attempt $i $(date -u +%H:%M:%S) ==="
+            code=$(curl -sS -m 60 -o /tmp/health.json -w "%{http_code}" "$BASE/api/health" || echo "000")
+            echo "health HTTP $code"
+            if [ "$code" = "200" ]; then
+              cat /tmp/health.json || true
+              # 2e ping pour garder chaud
+              curl -sS -m 20 -o /dev/null -w "ping:%{http_code}\n" "$BASE/api/ping" || true
+              curl -sS -m 20 -o /dev/null -w "state:%{http_code}\n" "$BASE/api/state" || true
+              exit 0
+            fi
+            sleep 8
           done
+          echo "WARN: service still cold after retries (will try again next schedule)"
+          exit 0
