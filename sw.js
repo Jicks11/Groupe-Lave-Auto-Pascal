@@ -1,6 +1,6 @@
-/* Service worker minimal — icône / installation écran d'accueil */
-const CACHE = "lave-auto-shell-v1";
-const SHELL = ["./", "index.html", "styles.css", "app.js", "manifest.webmanifest"];
+/* Service worker — mode app (standalone), comme les groupes Loto */
+const CACHE = "lave-auto-shell-v5";
+const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -18,8 +18,14 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  // Ne pas cacher l'API (soldes live)
-  if (url.pathname.startsWith("/api/")) return;
+  // Ne pas cacher les soldes live (Supabase / snapshot)
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.endsWith("/state.json") ||
+    url.hostname.indexOf("supabase.co") !== -1
+  ) {
+    return;
+  }
   event.respondWith(
     fetch(event.request)
       .then((res) => res)
