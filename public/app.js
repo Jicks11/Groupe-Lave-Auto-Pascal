@@ -814,6 +814,12 @@ const els = {
   activeCountLabel: document.querySelector("#activeCountLabel"),
   collectedAll: document.querySelector("#collectedAll"),
   paidPill: document.querySelector("#paidPill"),
+  sheetMonthLabel: document.querySelector("#sheetMonthLabel"),
+  sheetMonthForm: document.querySelector("#sheetMonthForm"),
+  sheetMonth: document.querySelector("#sheetMonth"),
+  openNextMonth: document.querySelector("#openNextMonth"),
+  autoSheetMonth: document.querySelector("#autoSheetMonth"),
+  applyMonthFees: document.querySelector("#applyMonthFees"),
   participantList: document.querySelector("#participantList"),
   detailTitle: document.querySelector("#detailTitle"),
   detailStatus: document.querySelector("#detailStatus"),
@@ -844,11 +850,7 @@ const els = {
 
 let state = loadState();
 let selectedId = localStorage.getItem(SELECTED_KEY) || state.members[0]?.id;
-// Afficher août 2026 par défaut si on est encore en juillet 2026 (mois de cotisation en cours)
-let selectedMonth = (() => {
-  const now = currentYearMonth();
-  return now <= "2026-08" ? "2026-08" : now;
-})();
+let selectedMonth = "2026-09";
 let adminUnlocked = false;
 let toastTimer = null;
 
@@ -881,11 +883,26 @@ function monthOptions() {
   return opts;
 }
 
-/** Mois de référence de la feuille (pas de menu déroulant) */
+/** Après le 20 à 00:01, on collecte déjà le mois suivant. */
+function collectionYearMonth(now = new Date()) {
+  const dueDay = clampDueDay(state?.dueDay ?? 20);
+  const ym = yearMonthFromDate(now);
+  const dueAt = feeMomentForYearMonth(ym, dueDay);
+  if (dueAt && now >= dueAt) return addMonthsYearMonth(ym, 1);
+  return ym;
+}
+
 function syncSheetMonth() {
-  // Affiche le mois de cotisation courant (ou août 2026 tant qu'on y est)
-  const now = currentYearMonth();
-  selectedMonth = now <= "2026-08" ? "2026-08" : now;
+  selectedMonth = state?.sheetYearMonth || collectionYearMonth();
+}
+
+function setSheetMonth(ym, persist) {
+  if (!/^\d{4}-\d{2}$/.test(String(ym || ""))) return;
+  selectedMonth = ym;
+  if (persist) {
+    state.sheetYearMonth = ym;
+    saveState();
+  }
 }
 
 function fillAdminSelects() {
@@ -900,6 +917,7 @@ function fillAdminSelects() {
     syncEditFields();
   }
   els.payMonth.value = selectedMonth;
+  if (els.sheetMonth) els.sheetMonth.value = selectedMonth;
   els.payAmount.value = String(state.monthlyFee);
   els.payDate.value = new Date().toISOString().slice(0, 10);
   els.settingFee.value = String(state.monthlyFee);
@@ -932,6 +950,8 @@ function renderParticipants() {
   const rows = state.members.map((m, index) => {
     const solde = soldeLabel(m.id, selectedMonth);
     const stripe = index % 2 === 1 ? "stripe" : "";
+    const showPay =
+      !isOwnerMember(m) && m.active !== false && memberStatus(m.id, selectedMonth) !== "paid";
 
     return `
       <div class="member-row ${stripe}" data-id="${m.id}">
@@ -941,6 +961,9 @@ function renderParticipants() {
         </div>
         <div class="col-solde">
           <span class="solde-text solde-${solde.kind}">${escapeHtml(solde.text)}</span>
+          <button class="mark-paid-btn" type="button" data-mark-paid="${m.id}" ${
+            showPay ? "" : "hidden"
+          }>Marquer payé</button>
         </div>
       </div>`;
   });
@@ -1069,6 +1092,66 @@ function renderHeroAndMetrics() {
   setText(els.lastUpdated, `Dernière mise à jour: ${formatDateTime(state.updatedAt)}`);
 }
 
+function remainingForMonth(memberId, yearMonth) {
+  if (isOwnerMember(memberId)) return 0;
+  const fee = Number(state.monthlyFee);
+  const paid = paidAmount(memberId, yearMonth);
+  return Math.max(0, Math.round((fee - paid) * 100) / 100);
+}
+
+function markMemberPaid(memberId, yearMonth = selectedMonth) {
+  if (!adminUnlocked) return toast("Déverrouille le mode admin");
+  const member = state.members.find((m) => m.id === memberId);
+  if (!member || member.active === false) return;
+  if (isOwnerMember(member)) {
+    toast("Pascal est toujours à jour");
+    return;
+  }
+  const need = remainingForMonth(memberId, yearMonth);
+  if (need <= 0) {
+    toast("Déjà payé pour ce mois");
+    return;
+  }
+  addPayment({
+    memberId,
+    yearMonth,
+    amount: need,
+    date: new Date().toISOString().slice(0, 10),
+    mode: "Interac",
+    note: `Marqué payé · ${yearMonthLabel(yearMonth)}`
+  });
+}
+
+function applyFeesForMonth(yearMonth) {
+  const fee = Math.round(Number(state.monthlyFee) * 100) / 100;
+  const dueDay = clampDueDay(state.dueDay);
+  const now = new Date();
+  let count = 0;
+  for (const member of billableMembers()) {
+    if (
+      state.payments.some(
+        (p) => isFeeEntry(p) && p.memberId === member.id && p.yearMonth === yearMonth
+      )
+    ) {
+      continue;
+    }
+    state.payments.unshift({
+      id: `fee_${yearMonth}_${member.id}_${Date.now().toString(36)}`,
+      type: "fee",
+      memberId: member.id,
+      yearMonth,
+      amount: fee,
+      date: `${yearMonth}-${String(dueDay).padStart(2, "0")}`,
+      mode: "Prélèvement auto",
+      note: `Cotisation ${monthShortLabel(yearMonth)} — admin`,
+      createdAt: now.toISOString()
+    });
+    count += 1;
+  }
+  ensureOwnerMonthPaid(yearMonth, now);
+  return count;
+}
+
 function render() {
   applyScheduledMonthlyFees(new Date(), { silent: true });
   syncSheetMonth();
@@ -1077,9 +1160,14 @@ function render() {
   renderParticipants();
   renderDetail();
   renderHistory();
+  document.body.classList.toggle("admin-on", adminUnlocked);
   els.adminPanel.classList.toggle("locked", !adminUnlocked);
   els.adminPanel.classList.toggle("unlocked", adminUnlocked);
   setText(els.adminToggle, adminUnlocked ? "Verrouiller admin" : "Mode Admin");
+  setText(
+    els.sheetMonthLabel,
+    `Feuille · ${yearMonthLabel(selectedMonth)}${state.sheetYearMonth ? "" : " · auto"}`
+  );
 }
 
 function addPayment({ memberId, yearMonth, amount, date, mode, note }) {
@@ -1134,6 +1222,57 @@ function lockAdmin() {
 els.adminToggle.addEventListener("click", () => {
   if (adminUnlocked) lockAdmin();
   else tryUnlockAdmin();
+});
+
+els.sheetMonthForm?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!adminUnlocked) return toast("Déverrouille le mode admin");
+  const ym = els.sheetMonth.value;
+  setSheetMonth(ym, true);
+  toast(`Feuille ouverte : ${yearMonthLabel(ym)}`);
+  render();
+});
+
+els.openNextMonth?.addEventListener("click", () => {
+  if (!adminUnlocked) return toast("Déverrouille le mode admin");
+  const next = addMonthsYearMonth(selectedMonth, 1);
+  setSheetMonth(next, true);
+  toast(`Feuille ouverte : ${yearMonthLabel(next)}`);
+  render();
+});
+
+els.autoSheetMonth?.addEventListener("click", () => {
+  if (!adminUnlocked) return toast("Déverrouille le mode admin");
+  delete state.sheetYearMonth;
+  saveState();
+  syncSheetMonth();
+  toast(`Mois auto : ${yearMonthLabel(selectedMonth)}`);
+  render();
+});
+
+els.applyMonthFees?.addEventListener("click", () => {
+  if (!adminUnlocked) return toast("Déverrouille le mode admin");
+  if (
+    !confirm(
+      `Prélever ${money(state.monthlyFee)} à chaque membre (sauf Pascal) pour ${yearMonthLabel(
+        selectedMonth
+      )} ?`
+    )
+  ) {
+    return;
+  }
+  const count = applyFeesForMonth(selectedMonth);
+  saveState();
+  toast(count ? `Cotisation appliquée (${count})` : "Déjà prélevée pour ce mois");
+  render();
+});
+
+els.participantList?.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-mark-paid]");
+  if (!btn) return;
+  e.preventDefault();
+  if (!adminUnlocked) return toast("Déverrouille le mode admin");
+  markMemberPaid(btn.getAttribute("data-mark-paid"));
 });
 
 els.paymentForm.addEventListener("submit", (e) => {

@@ -26,7 +26,7 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260824-supabase2" />
+    <link rel="stylesheet" href="styles.css?v=20260825-sept" />
     <!-- Données: Supabase (clé publishable, prévue pour le frontend). -->
     <script>
       window.LAVE_AUTO_SUPABASE_ANON_KEY = "sb_publishable_bVxnr-7GaSLPLWuGDrlnPQ_X7jQ8F_M";
@@ -70,7 +70,7 @@
           <article class="panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">Feuille du groupe</p>
+                <p class="eyebrow" id="sheetMonthLabel">Feuille du groupe</p>
                 <h2>Pr&eacute;nom, nom et solde</h2>
               </div>
               <span class="pill" id="paidPill">0 pay&eacute;s</span>
@@ -108,6 +108,24 @@
             <div class="admin-locked" id="adminLocked" hidden></div>
 
             <div class="admin-content" id="adminContent">
+              <form id="sheetMonthForm" class="admin-grid">
+                <div class="field">
+                  <label for="sheetMonth">Mois &agrave; collecter</label>
+                  <input id="sheetMonth" type="month" required />
+                </div>
+                <div class="field form-actions" style="align-content:end;">
+                  <button class="accent-button" type="submit">Ouvrir ce mois</button>
+                </div>
+                <div class="field full form-actions">
+                  <button class="ghost-button" id="openNextMonth" type="button">Mois suivant</button>
+                  <button class="ghost-button" id="autoSheetMonth" type="button">Suivre la date (auto)</button>
+                  <button class="ghost-button" id="applyMonthFees" type="button">Pr&eacute;lever la cotisation du mois</button>
+                  <button class="ghost-button" id="markAllPaid" type="button">Marquer tous pay&eacute;s (mois)</button>
+                </div>
+              </form>
+
+              <hr class="admin-sep" />
+
               <form id="paymentForm" class="admin-grid">
                 <div class="field">
                   <label for="payMember">Membre</label>
@@ -140,7 +158,6 @@
                 </div>
                 <div class="field full form-actions">
                   <button class="accent-button" type="submit">Enregistrer le paiement</button>
-                  <button class="ghost-button" id="markAllPaid" type="button">Marquer tous pay&eacute;s (mois)</button>
                 </div>
               </form>
 
@@ -195,7 +212,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260824-supabase2"></script>
+    <script src="app.js?v=20260825-sept"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
