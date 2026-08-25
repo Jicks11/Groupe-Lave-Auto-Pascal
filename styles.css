@@ -509,6 +509,27 @@ small, .muted { color: var(--muted); }
   color: rgba(61, 255, 154, 0.75);
 }
 
+.mark-paid-btn {
+  display: none;
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+  color: #041018;
+  background: linear-gradient(135deg, #3dff9a, #1ec9b0);
+}
+
+body.admin-on .mark-paid-btn {
+  display: inline-flex;
+}
+
+.mark-paid-btn[hidden] {
+  display: none !important;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
