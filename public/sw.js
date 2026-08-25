@@ -1,5 +1,5 @@
 /* Service worker — mode app (standalone), comme les groupes Loto */
-const CACHE = "lave-auto-shell-v8";
+const CACHE = "lave-auto-shell-v9";
 const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
