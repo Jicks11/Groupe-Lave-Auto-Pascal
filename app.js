@@ -667,13 +667,53 @@ function runningBalance(memberId) {
   return Math.round(bal * 100) / 100;
 }
 
+function monthDueAmount(memberId, yearMonth) {
+  if (isOwnerMember(memberId)) return 0;
+  const fees = feesFor(memberId, yearMonth);
+  if (fees.length) {
+    return fees.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }
+  return Number(state.monthlyFee);
+}
+
+/** Report le surplus d'un mois sur les suivants (Nancy 33,40 $ → reste 6,20 $ en septembre). */
+function walkMemberLedger(memberId) {
+  const months = coverageMonthsForMember(memberId);
+  let credit = 0;
+  let firstDebt = null;
+  let lastFullYm = null;
+  let surplusOnLast = 0;
+  const byMonth = {};
+  for (const ym of months) {
+    const paid = paidAmount(memberId, ym);
+    const due = monthDueAmount(memberId, ym);
+    credit = Math.round((credit + paid) * 100) / 100;
+    const remaining = Math.round((due - credit) * 100) / 100;
+    if (remaining > 0.01) {
+      if (!firstDebt) {
+        firstDebt = { ym, remaining, paid, credit };
+      }
+      byMonth[ym] = { remaining, paid, credit, full: false };
+      credit = 0;
+    } else {
+      credit = Math.round((credit - due) * 100) / 100;
+      if (credit < 0) credit = 0;
+      lastFullYm = ym;
+      surplusOnLast = credit;
+      byMonth[ym] = { remaining: 0, paid, credit, full: true, surplus: credit };
+    }
+  }
+  return { firstDebt, lastFullYm, surplusOnLast, byMonth, credit };
+}
+
 function memberStatus(memberId, yearMonth) {
   const member = state.members.find((m) => m.id === memberId);
   if (!member || member.active === false) return "inactive";
   if (isOwnerMember(member) || isOwnerMember(memberId)) return "paid";
-  const bal = monthBalance(memberId, yearMonth);
-  if (bal >= -0.001) return "paid";
-  if (paidAmount(memberId, yearMonth) > 0) return "partial";
+  const need = remainingForMonth(memberId, yearMonth);
+  if (need <= 0.01) return "paid";
+  const ledger = walkMemberLedger(memberId).byMonth[yearMonth];
+  if ((ledger?.paid || 0) > 0.01 || (ledger?.credit || 0) > 0.01) return "partial";
   return "unpaid";
 }
 
@@ -715,49 +755,26 @@ function soldeLabel(memberId, yearMonth) {
   const member = state.members.find((m) => m.id === memberId);
   if (!member || member.active === false) return { text: "Inactif", kind: "inactive" };
 
-  // Pascal (toi) : toujours le mois de la feuille payé
   if (isOwnerMember(member) || isOwnerMember(memberId)) {
     return { text: `${monthShortLabel(yearMonth)} payé`, kind: "paid" };
   }
 
   const fee = Number(state.monthlyFee);
-  const months = coverageMonthsForMember(memberId);
   const note = state.memberNotes?.[memberId];
+  const { firstDebt, lastFullYm, surplusOnLast } = walkMemberLedger(memberId);
 
-  let firstDebt = null;
-  let lastFullYm = null;
-  let surplusOnLast = 0;
-
-  for (const ym of months) {
-    const paid = paidAmount(memberId, ym);
-    const remaining = Math.round((fee - paid) * 100) / 100;
-    if (remaining > 0.01) {
-      if (!firstDebt) {
-        firstDebt = { ym, remaining, paid };
-      }
-    } else {
-      // payé en entier (ou plus)
-      lastFullYm = ym;
-      surplusOnLast = Math.max(0, Math.round((paid - fee) * 100) / 100);
-    }
-  }
-
-  // Note spéciale seulement s'il n'a encore rien payé
   if (note && !lastFullYm && !firstDebt) {
     return { text: note, kind: "note" };
   }
-  if (note && !lastFullYm && firstDebt && firstDebt.paid < 0.01) {
+  if (note && !lastFullYm && firstDebt && firstDebt.paid < 0.01 && firstDebt.credit < 0.01) {
     return { text: note, kind: "note" };
   }
 
-  // En retard / partiel sur le premier mois manquant
   if (firstDebt) {
-    // S'il a déjà des mois complets après un trou, on affiche quand même le premier dû
-    const kind = firstDebt.paid > 0.01 ? "partial" : "unpaid";
+    const kind = firstDebt.paid > 0.01 || firstDebt.credit > 0.01 ? "partial" : "unpaid";
     return { text: `(${money(firstDebt.remaining)})`, kind };
   }
 
-  // Tout est payé jusqu'à lastFullYm inclus (ex. octobre)
   if (lastFullYm) {
     const label = monthShortLabel(lastFullYm);
     if (surplusOnLast > 0.01) {
@@ -769,7 +786,6 @@ function soldeLabel(memberId, yearMonth) {
     return { text: `${label} payé`, kind: "paid" };
   }
 
-  // Rien payé, mois courant dû
   return { text: `(${money(fee)})`, kind: "unpaid" };
 }
 
@@ -918,7 +934,8 @@ function fillAdminSelects() {
   }
   els.payMonth.value = selectedMonth;
   if (els.sheetMonth) els.sheetMonth.value = selectedMonth;
-  els.payAmount.value = String(state.monthlyFee);
+  const dueNow = remainingForMonth(els.payMember.value, selectedMonth);
+  els.payAmount.value = String(dueNow > 0 ? dueNow : state.monthlyFee);
   els.payDate.value = new Date().toISOString().slice(0, 10);
   els.settingFee.value = String(state.monthlyFee);
   els.settingDueDay.value = String(state.dueDay);
@@ -1094,9 +1111,11 @@ function renderHeroAndMetrics() {
 
 function remainingForMonth(memberId, yearMonth) {
   if (isOwnerMember(memberId)) return 0;
-  const fee = Number(state.monthlyFee);
-  const paid = paidAmount(memberId, yearMonth);
-  return Math.max(0, Math.round((fee - paid) * 100) / 100);
+  const row = walkMemberLedger(memberId).byMonth[yearMonth];
+  if (row) return Math.max(0, Number(row.remaining || 0));
+  const { firstDebt } = walkMemberLedger(memberId);
+  if (firstDebt?.ym === yearMonth) return firstDebt.remaining;
+  return Math.max(0, Math.round((Number(state.monthlyFee) - paidAmount(memberId, yearMonth)) * 100) / 100);
 }
 
 function markMemberPaid(memberId, yearMonth = selectedMonth) {
@@ -1292,13 +1311,11 @@ els.paymentForm.addEventListener("submit", (e) => {
 els.markAllPaid.addEventListener("click", () => {
   if (!adminUnlocked) return toast("Déverrouille le mode admin");
   if (!confirm(`Marquer tous les membres actifs comme payés pour ${yearMonthLabel(selectedMonth)} ?`)) return;
-  const fee = Number(state.monthlyFee);
   let count = 0;
   for (const m of billableMembers()) {
     const status = memberStatus(m.id, selectedMonth);
     if (status === "paid") continue;
-    const paid = paidAmount(m.id, selectedMonth);
-    const need = Math.max(0, fee - paid);
+    const need = remainingForMonth(m.id, selectedMonth);
     if (need <= 0) continue;
     state.payments.unshift({
       id: uid(),
@@ -1316,6 +1333,16 @@ els.markAllPaid.addEventListener("click", () => {
   saveState();
   toast(count ? `${count} paiement(s) ajouté(s)` : "Tous étaient déjà payés");
   render();
+});
+
+els.payMember?.addEventListener("change", () => {
+  const dueNow = remainingForMonth(els.payMember.value, els.payMonth.value || selectedMonth);
+  els.payAmount.value = String(dueNow > 0 ? dueNow : state.monthlyFee);
+});
+
+els.payMonth?.addEventListener("change", () => {
+  const dueNow = remainingForMonth(els.payMember.value, els.payMonth.value || selectedMonth);
+  els.payAmount.value = String(dueNow > 0 ? dueNow : state.monthlyFee);
 });
 
 els.editMember.addEventListener("change", syncEditFields);
