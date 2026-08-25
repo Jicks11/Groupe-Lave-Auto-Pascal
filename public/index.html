@@ -26,13 +26,10 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260824-supabase" />
-    <!--
-      Données: Supabase (toujours allumé). Clé anon publique — Settings → API.
-      Sans clé, l'app lit le snapshot state.json (soldes du 23 août).
-    -->
+    <link rel="stylesheet" href="styles.css?v=20260824-supabase2" />
+    <!-- Données: Supabase (clé publishable, prévue pour le frontend). -->
     <script>
-      window.LAVE_AUTO_SUPABASE_ANON_KEY = window.LAVE_AUTO_SUPABASE_ANON_KEY || "";
+      window.LAVE_AUTO_SUPABASE_ANON_KEY = "sb_publishable_bVxnr-7GaSLPLWuGDrlnPQ_X7jQ8F_M";
     </script>
   </head>
   <body>
@@ -198,7 +195,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260824-supabase"></script>
+    <script src="app.js?v=20260824-supabase2"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
