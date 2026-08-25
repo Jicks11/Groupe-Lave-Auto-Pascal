@@ -1,7 +1,7 @@
 /**
  * Groupe Lave-auto Couche-Tard
  * 9 membres · 39,60 $ / mois · échéance le 20 à 00:01
- * Sync serveur (/api/state) + cache localStorage
+ * Sync Supabase (RPC) + cache localStorage + snapshot state.json
  */
 
 const STORAGE_KEY = "lave-auto-state-v4";
@@ -13,25 +13,11 @@ const SHEET_SEED_VERSION = "feuille-2026-07-22-autofee";
 const FEE_START_YEAR_MONTH = "2026-08";
 const FEE_CHECK_INTERVAL_MS = 30000;
 const REFRESH_INTERVAL_MS = 25000;
-/** API backend (Render). Le site peut être servi ailleurs (GitHub Pages) pour un chargement immédiat. */
-const DEFAULT_API_ORIGIN = "https://groupe-lave-auto-pascal.onrender.com";
-const LOCAL_HOSTS = new Set(["", "localhost", "127.0.0.1"]);
 
-function resolveApiOrigin() {
-  // Override manuel (tests)
-  if (window.LAVE_AUTO_API_ORIGIN != null && window.LAVE_AUTO_API_ORIGIN !== undefined) {
-    return String(window.LAVE_AUTO_API_ORIGIN || "").replace(/\/$/, "");
-  }
-  const host = String(window.location.hostname || "").toLowerCase();
-  // Sur Render / local : même origine. Ailleurs (GitHub Pages) : API Render.
-  if (LOCAL_HOSTS.has(host) || host.endsWith(".onrender.com")) {
-    return "";
-  }
-  return DEFAULT_API_ORIGIN.replace(/\/$/, "");
-}
-
-const API_ORIGIN = resolveApiOrigin();
-const API_BASE = `${API_ORIGIN}/api`;
+const SUPABASE_URL = "https://cvxbijxuitmtwcdmvvwo.supabase.co";
+const SUPABASE_ANON_KEY = String(
+  window.LAVE_AUTO_SUPABASE_ANON_KEY || ""
+).trim();
 
 let serverSyncEnabled = true;
 let serverSaveInFlight = false;
@@ -41,27 +27,32 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Réveille l’API en arrière-plan avec messages de groupe (pas d’écran hébergeur). */
+function supabaseHeaders() {
+  return {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=representation"
+  };
+}
+
+function snapshotUrl() {
+  try {
+    return new URL("state.json", window.location.href).href;
+  } catch {
+    return "state.json";
+  }
+}
+
 async function wakeAndPullState() {
-  // Max ~30s (évite page blanche / chargement infini si Render dort trop longtemps)
-  const maxAttempts = 12;
+  const maxAttempts = SUPABASE_ANON_KEY ? 3 : 2;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const pct = Math.min(92, 18 + attempt * 6);
+    const pct = Math.min(92, 28 + attempt * 24);
     if (els.startupProgress) els.startupProgress.style.width = `${pct}%`;
     if (attempt === 0) {
       setText(els.startupMessage, "Ouverture du groupe…");
-    } else if (attempt < 3) {
-      setText(els.startupMessage, "Préparation des soldes…");
-    } else if (attempt < 7) {
-      setText(els.startupMessage, "Réveil du serveur… un instant");
     } else {
-      setText(els.startupMessage, "Connexion lente — affichage local…");
-    }
-
-    try {
-      await fetch(`${API_BASE}/ping`, { method: "GET", cache: "no-store", mode: "cors" });
-    } catch {
-      /* ignore */
+      setText(els.startupMessage, "Chargement des soldes…");
     }
 
     const source = await pullStateFromServer();
@@ -69,15 +60,22 @@ async function wakeAndPullState() {
       return source;
     }
 
-    await sleep(attempt < 4 ? 1200 : 2000);
+    await sleep(400);
   }
   return "offline";
 }
 
-// Réveil le plus tôt possible (dès le parse du script)
 try {
-  fetch(`${API_BASE}/ping`, { method: "GET", cache: "no-store", mode: "cors" }).catch(() => {});
-  fetch(`${API_BASE}/state`, { method: "GET", cache: "no-store", mode: "cors" }).catch(() => {});
+  if (SUPABASE_ANON_KEY) {
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/get_lave_auto_state`, {
+      method: "POST",
+      headers: supabaseHeaders(),
+      body: "{}",
+      cache: "no-store"
+    }).catch(() => {});
+  } else {
+    fetch(snapshotUrl(), { cache: "no-store" }).catch(() => {});
+  }
 } catch {
   /* ignore */
 }
@@ -248,15 +246,16 @@ async function pushStateToServer() {
   const pin = getAdminPinForApi();
   if (!pin) return false;
   if (serverSaveInFlight) return false;
+  if (!SUPABASE_ANON_KEY) return false;
   serverSaveInFlight = true;
   try {
-    const res = await fetch(`${API_BASE}/state`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/save_lave_auto_state`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminPin: pin, state }),
+      headers: supabaseHeaders(),
+      body: JSON.stringify({ p_pin: pin, p_payload: state }),
       cache: "no-store"
     });
-    if (res.status === 401) {
+    if (res.status === 401 || res.status === 403) {
       sessionStorage.removeItem(ADMIN_PIN_KEY);
       adminUnlocked = false;
       toast("PIN admin refusé par le serveur");
@@ -264,9 +263,10 @@ async function pushStateToServer() {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.updatedAt) {
-      state.updatedAt = data.updatedAt;
-      lastServerUpdatedAt = data.updatedAt;
+    const updatedAt = data?.updatedAt || data?.payload?.updatedAt;
+    if (updatedAt) {
+      state.updatedAt = updatedAt;
+      lastServerUpdatedAt = updatedAt;
     }
     return true;
   } catch (err) {
@@ -311,38 +311,71 @@ function mergeRemoteState(remote) {
   };
 }
 
+async function applyRemotePayload(remote) {
+  if (!remote || !Array.isArray(remote.members)) return false;
+  const merged = mergeRemoteState(remote);
+  if (!merged) return false;
+  state = merged;
+  lastServerUpdatedAt = remote.updatedAt || merged.updatedAt;
+  saveStateLocalOnly();
+  return true;
+}
+
+async function pullStateFromSupabase() {
+  if (!SUPABASE_ANON_KEY) return null;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_lave_auto_state`, {
+    method: "POST",
+    headers: supabaseHeaders(),
+    body: "{}",
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function pullStateFromSnapshot() {
+  const res = await fetch(snapshotUrl(), { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 async function pullStateFromServer() {
   try {
-    const res = await fetch(`${API_BASE}/state`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    serverSyncEnabled = true;
-    if (data?.state && Array.isArray(data.state.members)) {
-      const merged = mergeRemoteState(data.state);
-      if (merged) {
-        state = merged;
-        lastServerUpdatedAt = data.state.updatedAt || data.updatedAt;
-        saveStateLocalOnly();
-        return "server";
-      }
+    let remote = null;
+    if (SUPABASE_ANON_KEY) {
+      remote = await pullStateFromSupabase();
+    } else {
+      remote = await pullStateFromSnapshot();
     }
-    // Serveur vide : si on a un état local et le PIN, on seed le serveur
+    serverSyncEnabled = Boolean(SUPABASE_ANON_KEY);
+    if (await applyRemotePayload(remote)) {
+      return "server";
+    }
     return "empty";
   } catch (err) {
-    console.warn("pullStateFromServer — mode local", err);
-    serverSyncEnabled = false;
+    console.warn("pullStateFromServer — fallback snapshot", err);
+    try {
+      const remote = await pullStateFromSnapshot();
+      if (await applyRemotePayload(remote)) {
+        serverSyncEnabled = Boolean(SUPABASE_ANON_KEY);
+        return "server";
+      }
+    } catch (err2) {
+      console.warn("pullStateFromServer — mode local", err2);
+    }
+    serverSyncEnabled = Boolean(SUPABASE_ANON_KEY);
     return "offline";
   }
 }
 
 async function seedServerIfEmpty() {
   const pin = getAdminPinForApi() || state.adminPin || DEFAULT_ADMIN_PIN;
-  if (!serverSyncEnabled) return;
+  if (!SUPABASE_ANON_KEY) return;
   try {
-    const res = await fetch(`${API_BASE}/state`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/save_lave_auto_state`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ adminPin: pin, state }),
+      headers: supabaseHeaders(),
+      body: JSON.stringify({ p_pin: pin, p_payload: state }),
       cache: "no-store"
     });
     if (res.ok) {

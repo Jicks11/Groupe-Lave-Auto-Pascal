@@ -26,27 +26,13 @@
         font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
       }
     </style>
-    <link rel="stylesheet" href="styles.css?v=20260728-pages" />
+    <link rel="stylesheet" href="styles.css?v=20260824-supabase" />
     <!--
-      UI peut être sur GitHub Pages (instantané, jamais d'écran Render)
-      ou sur Render (même origine). API = toujours le backend Render.
+      Données: Supabase (toujours allumé). Clé anon publique — Settings → API.
+      Sans clé, l'app lit le snapshot state.json (soldes du 23 août).
     -->
     <script>
-      (function () {
-        var host = (location.hostname || "").toLowerCase();
-        var onRender = host.indexOf("onrender.com") !== -1;
-        var local = host === "localhost" || host === "127.0.0.1" || host === "";
-        // Sur Pages / autre domaine → API Render. Sur Render/local → même origine.
-        window.LAVE_AUTO_API_ORIGIN = (onRender || local)
-          ? ""
-          : "https://groupe-lave-auto-pascal.onrender.com";
-        var api = window.LAVE_AUTO_API_ORIGIN || "";
-        try {
-          // Réveille seulement l'API (pas besoin de charger la page HTML Render)
-          fetch(api + "/api/ping", { cache: "no-store", mode: "cors" }).catch(function () {});
-          fetch(api + "/api/state", { cache: "no-store", mode: "cors" }).catch(function () {});
-        } catch (e) {}
-      })();
+      window.LAVE_AUTO_SUPABASE_ANON_KEY = window.LAVE_AUTO_SUPABASE_ANON_KEY || "";
     </script>
   </head>
   <body>
@@ -212,7 +198,7 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="app.js?v=20260723-app"></script>
+    <script src="app.js?v=20260824-supabase"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {

@@ -2,9 +2,7 @@
 name: Keep Lave-auto awake
 
 on:
-  schedule:
-    # Toutes les 5 minutes (free tier s'endort ~15 min d'inactivité)
-    - cron: "*/5 * * * *"
+  # Render est suspendu (quota gratuit). Plus de ping.
   workflow_dispatch:
 
 jobs:
