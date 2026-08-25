@@ -772,7 +772,7 @@ function soldeLabel(memberId, yearMonth) {
 
   if (firstDebt) {
     const kind = firstDebt.paid > 0.01 || firstDebt.credit > 0.01 ? "partial" : "unpaid";
-    return { text: `(${money(firstDebt.remaining)})`, kind };
+    return { text: money(-firstDebt.remaining), kind };
   }
 
   if (lastFullYm) {
@@ -786,7 +786,7 @@ function soldeLabel(memberId, yearMonth) {
     return { text: `${label} payé`, kind: "paid" };
   }
 
-  return { text: `(${money(fee)})`, kind: "unpaid" };
+  return { text: money(-fee), kind: "unpaid" };
 }
 
 function monthShortLabel(ym) {
